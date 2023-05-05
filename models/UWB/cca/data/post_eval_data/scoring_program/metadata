@@ -1,2 +1,0 @@
-command: python2 $program/evaluation.py $input $output
-description: SemEval-2020 Task 1 competition evaluation program.
