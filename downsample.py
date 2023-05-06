@@ -1,10 +1,13 @@
 import argparse
 import csv
 import linecache
+import pathlib
 import random
 import re
-import textwrap
+import shutil
 import sys
+import textwrap
+from argparse import RawDescriptionHelpFormatter
 from math import ceil
 from tabulate import tabulate
 from tqdm import tqdm
@@ -15,6 +18,10 @@ class codes:
     WARNING = "\033[1m\033[35mWarning:\033[0m"
     EXITING = "\033[1m\033[31mExiting:\033[0m"
     ERROR = "\033[1m\033[31mError:\033[0m"
+
+    @staticmethod
+    def color_name(name: str) -> str:
+        return f"\033[33m{name}\033[0m"
 
 
 #########################################
@@ -415,7 +422,7 @@ def downsample(
                 downsample_file.write(f"{sample}\n")
 
 
-def handle_downsample(language: str, target: int):
+def handle_downsample(language: str, target: int, write_path: str):
     """Main driver that handles the downsample, printing
     relevant diagnostic text to console and querying user input
     when appropriate.  See help message for information on program flow.
@@ -432,14 +439,22 @@ def handle_downsample(language: str, target: int):
     names = langauge_to_corpus_names[language]
     corpus1_path = f"data/semeval/{language}/{names[0]}.txt"
     corpus2_path = f"data/semeval/{language}/{names[1]}.txt"
-    corpus1_write_path = f"data/downsampled/{language}/{names[0]}.txt"
-    corpus2_write_path = f"data/downsampled/{language}/{names[1]}.txt"
+    corpus1_write_path = f"{write_path}/{language}/{names[0]}.txt"
+    corpus2_write_path = f"{write_path}/{language}/{names[1]}.txt"
+    targets_path = f"data/semeval/{language}/targets.txt"
+    truth_path = f"data/semeval/{language}/truth"
+
+    # makes the write directory in case it doesn't exist yet
+    pathlib.Path(f"{write_path}/{language}").mkdir(parents=True, exist_ok=True)
+
+    # copies over the truth and targets.txt files
+    shutil.copyfile(targets_path, f"{write_path}/{language}/targets.txt")
+    shutil.copytree(truth_path, f"{write_path}/{language}/truth", dirs_exist_ok=True)
 
     print("\n" + "="*25 + " Getting Target Words " + "="*25)
-
     print(f"\nGathering targets from data/semeval/{language}/targets.txt")
 
-    targets = get_targets(f"data/semeval/{language}/targets.txt")
+    targets = get_targets(targets_path)
 
     print("\n TARGETS:")
     print("-"*20)
@@ -466,7 +481,6 @@ def handle_downsample(language: str, target: int):
 
 if __name__ == "__main__":
     import doctest
-    from argparse import RawDescriptionHelpFormatter
     doctest.testmod(optionflags=doctest.ELLIPSIS)
 
     language_help_txt = (
@@ -476,20 +490,35 @@ if __name__ == "__main__":
 
     target_help_txt = "The number of desired tokens after downsampling, defaults to 150k."
     seed_help_txt = "Random seed to use for setting random.seed(__), defaults to 42."
+    write_help_txt = "Where to write the downsampled corpora to, defaults to data/downsampled."
 
     downsampler_description = textwrap.dedent("""
     A simple script for downsampling the SemEval 2020-Task 1 corpora while preserving
     manual annotated uses that were used to create ground truth data in SemEval.  
     Currently, downsampling is supported in English, German, and Swedish, but not in 
-    Latin as I've not found a way to match Latin annotated uses to their lemmatized
-    context in the SemEval dataset.  This script can be used to create corpora of any 
+    Latin (I've not found a way to match Latin annotated uses to their lemmatized
+    context in the SemEval dataset).  This script can be used to create corpora of any 
     target size below the total number of tokens per language corpora (e.g., there are 
     ~6.56 million tokens in ccoha1, you can't ask this program to "downsample" to 6.57 
     million tokens in English as there weren't even 6.57 million tokens to begin with!).  
 
     The script will write to "data/downsampled/{language}/" the downsampled corpora for the
-    requested language.  The downsampled corpora will have a randomized line order but will 
-    have the same lines run to run as long as random_seed is not changed.
+    requested language by default, although that can be changed by passing in a different.  
+    The downsampled corpora will have a randomized line order but will have the same lines run to 
+    run as long as random_seed is not changed.  The truth/ and targets.txt files for the given
+    language will also be copied over, so that after running this file the director format
+    will be
+
+        data/downsampled/{language}
+            ├── truth
+            │    ├── binary.txt
+            │    └── graded.txt
+            ├── CORPUS1.txt
+            ├── CORPUS2.txt
+            └── targets.txt
+
+    where CORPUS1 and CORPUS2 are given by the name of the corpora being downsampled, and
+    data/downsampled can be changed to the desired write directory using the -w flag.
 
     The program has four stages:
 
@@ -550,7 +579,6 @@ if __name__ == "__main__":
         1. Annotated Uses: data/annotated_uses/{language}/{target_word}.csv
         2. SemEval 2020-Task 1 Corpora: data/semeval/{language}/{corpus_name}.txt
         3. SemEval 2020-Task 1 Targets: data/semeval/{language}/targets.txt
-        4. Downsample Write Directories: data/downsampled/{language}/
 
     Where:
 
@@ -562,10 +590,9 @@ if __name__ == "__main__":
            used in SemEval-Task 1.  These corpora can be found from the 2020 paper by 
            Schlechtweg et al, "SemEval-2020 Task 1: Unsupervised Lexical Semantic Change Detection"
         3. "SemEval 2020-Task 1 Targets" ibid except the .txt target files
-        4. Where to write the downsampled corpora, note that it is expected that these directories
-           already exist.
 
-    But you haven't been messing with the directory structure, have you? ;)
+    This can be created by running `./download.sh` (you may need to give download.sh
+    executable privileges first).
 
     Example uses (output elided, for full output example see README.md):
 
@@ -577,7 +604,7 @@ if __name__ == "__main__":
      the downsample despite the fact that the number of tokens requested is fewer
      than the number of annotated use tokens)
 
-    >>> python3 downsample.py english 165000 41
+    >>> python3 downsample.py english -t 165000 -s 41
     (details elided, but essentially the same as the first example just using a 
      different seed and asking for more tokens to be sampled)
 
@@ -585,14 +612,15 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description=downsampler_description, formatter_class=RawDescriptionHelpFormatter)
     parser.add_argument('language', help=language_help_txt)
-    parser.add_argument('target_tokens', nargs='?', type=int, help=target_help_txt, default=150000)
-    parser.add_argument('random_seed', nargs='?', type=int, help=seed_help_txt, default=42)
+    parser.add_argument('-t', '--target_tokens', type=int, help=target_help_txt, default=150000)
+    parser.add_argument('-s', '--random_seed', type=int, help=seed_help_txt, default=42)
+    parser.add_argument('-w', '--write_path', type=str, help=write_help_txt, default="data/downsampled")
     args = parser.parse_args()
 
     LANGUAGE = args.language.lower()
     random.seed(args.random_seed)
 
     if LANGUAGE in {"english", "german", "swedish"}:
-        handle_downsample(LANGUAGE, args.target_tokens)
+        handle_downsample(LANGUAGE, args.target_tokens, args.write_path)
     else:
         print(f"{codes.ERROR} {LANGUAGE} is not supported.  Only English, German, and Swedish can be downsampled.")

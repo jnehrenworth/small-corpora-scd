@@ -1,7 +1,7 @@
 """ Predicts lexical semantic change ranking for a dataset with the context-free or context-dependent model. """
 
-from models.context_dependent import make_classification_dataset, finetune_bert, extract_representations, compare_context_dependent_representations 
-from models.context_free import preprocess_texts, train_word2vec, align_embeddings, compare_context_free_representations
+from models.UG_Student_Intern.models.context_dependent import make_classification_dataset, finetune_bert, extract_representations, compare_context_dependent_representations 
+from models.UG_Student_Intern.models.context_free import preprocess_texts, train_word2vec, align_embeddings, compare_context_free_representations
 
 import argparse
 import os
@@ -45,10 +45,10 @@ def predict(model_name="", dataset_dir="", overwrite=False, filtered=True, **par
 
     print("Predicting with {} model for dataset {} ...".format(model_name, dataset_name))
 
-    if not os.path.exists("experiments"):
-        os.mkdir("experiments")
+    if not os.path.exists("models/UG_Student_Intern/experiments"):
+        os.mkdir("models/UG_Student_Intern/experiments")
 
-    experiment_dir = "experiments/" + experiment_name + "/"
+    experiment_dir = "models/UG_Student_Intern/experiments/" + experiment_name + "/"
     
     if os.path.exists(experiment_dir):
         assert overwrite, "Experiment folder already exists and --overwrite flag not used, aborting experiment ..."

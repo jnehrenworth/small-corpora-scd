@@ -7,13 +7,13 @@ import numpy as np
 import scipy.stats as ss
 from gensim.models import KeyedVectors
 
-from config import EMBEDDINGS_EXPORT_PATH, TMP_DIR, ENGLISH_TEST_TARGET_WORDS, TEST_DATA_RESULTS_DIR, \
+from models.UWB.cca.config import EMBEDDINGS_EXPORT_PATH, TMP_DIR, ENGLISH_TEST_TARGET_WORDS, TEST_DATA_RESULTS_DIR, \
     GERMAN_TEST_TARGET_WORDS, LATIN_TEST_TARGET_WORDS, SWEDISH_TEST_TARGET_WORDS, TEST_DATA_TRUTH_ANSWER_TASK_1, \
     TEST_DATA_TRUTH_ANSWER_TASK_2, SWEDISH_TEST_GOLD_TASK_1, SWEDISH_TEST_GOLD_TASK_2, LATIN_TEST_GOLD_TASK_1, \
     LATIN_TEST_GOLD_TASK_2, GERMAN_TEST_GOLD_TASK_1, GERMAN_TEST_GOLD_TASK_2, ENGLISH_TEST_GOLD_TASK_2, \
     ENGLISH_TEST_GOLD_TASK_1
-from data.post_eval_data.scoring_program.evaluation_official import spearman_official, accuracy_official
-from sense_comparator import load_transform_matrix, compare_sense
+from models.UWB.cca.data.post_eval_data.scoring_program.evaluation_official import spearman_official, accuracy_official
+from models.UWB.cca.sense_comparator import load_transform_matrix, compare_sense
 
 
 def main():
@@ -45,9 +45,9 @@ def main():
     acc_list.append(acc)
     rho_list.append(rho)
 
-    acc, rho = run_latin_default(task_1_dir, task_2_dir, reverse_emb, use_bin_thld, use_nearest_neigbh, emb_type, emb_dim, window, iter, mean_centering, unit_vectors)
-    acc_list.append(acc)
-    rho_list.append(rho)
+    # acc, rho = run_latin_default(task_1_dir, task_2_dir, reverse_emb, use_bin_thld, use_nearest_neigbh, emb_type, emb_dim, window, iter, mean_centering, unit_vectors)
+    # acc_list.append(acc)
+    # rho_list.append(rho)
 
     acc, rho = run_swedish_default(task_1_dir, task_2_dir, reverse_emb, use_bin_thld, use_nearest_neigbh, emb_type, emb_dim, window, iter, mean_centering, unit_vectors)
     acc_list.append(acc)
@@ -56,16 +56,16 @@ def main():
     acc_avg = round(np.mean(acc_list), 3)
     rho_avg = round(np.mean(rho_list), 3)
 
-    print('Type' + '\t' + 'avg acc/rank' + '\t' + 'english' + '\t' + 'german' + '\t' + 'latin'+ '\t' + 'swedish' + '\t' + 'reverse emb'
+    print('Type' + '\t' + 'avg acc/rank' + '\t' + 'english' + '\t' + 'german' + '\t' + '\t' + 'swedish' + '\t' + 'reverse emb'
           + '\t' + 'emb_type' + '\t' + 'emb_dim' + '\t' + 'window' + '\t' + 'iter' + '\t' + 'use bin thld' + '\t' + 'use nearest neigh')
     print("Binary overview" + '\t' + str(acc_avg) +
-          '\t' + str(acc_list[0]) + '\t' + str(acc_list[1]) + '\t' + str(acc_list[2]) + '\t' + str(acc_list[3]) + '\t'
+          '\t' + str(acc_list[0]) + '\t' + str(acc_list[1]) + '\t' + str(acc_list[2]) + '\t'
           + str(reverse_emb) + '\t' + emb_type + '\t' + str(emb_dim) + '\t' + str(window) + '\t' + str(iter)
           + '\t' + str(use_bin_thld) + '\t' + str(use_nearest_neigbh))
 
 
     print('Rank overview' + '\t' + str(rho_avg) +
-          '\t' + str(rho_list[0]) + '\t' + str(rho_list[1]) + '\t' + str(rho_list[2]) + '\t' + str(rho_list[3]) + '\t'
+          '\t' + str(rho_list[0]) + '\t' + str(rho_list[1]) + '\t' + str(rho_list[2]) + '\t'
           + str(reverse_emb) + '\t' + emb_type + '\t' + str(emb_dim) + '\t' + str(window) + '\t' + str(iter))
 
 
@@ -288,8 +288,8 @@ def compare(src_emb_path, trg_emb_path, target_words_path, gold_file_task1, gold
         src_emb.vectors = normalize(src_emb.vectors, mean_centering, unit_vectors)
         trg_emb.vectors = normalize(trg_emb.vectors, mean_centering, unit_vectors)
 
-    print("Src emb size:" + str(len(src_emb.vocab)))
-    print("Trg emb size:" + str(len(trg_emb.vocab)))
+    print("Src emb size:" + str(len(src_emb)))
+    print("Trg emb size:" + str(len(trg_emb)))
     target_words_dict, target_words = load_target_words(target_words_path, load_labels=False)
 
     run_transform = False
@@ -318,7 +318,7 @@ def compare(src_emb_path, trg_emb_path, target_words_path, gold_file_task1, gold
     build_transform_dict(src_emb,trg_emb,trans_dict_path, target_words_dict)
 
     if run_transform is True:
-        import ccaxform1 as ccx  # this could be closer to other imports ...
+        import models.UWB.cca.ccaxform1 as ccx  # this could be closer to other imports ...
 
         # get the transform
         trans_matrix = ccx.transform_KV(src_emb, trg_emb, target_words_dict, max_links=max_links)
@@ -536,9 +536,10 @@ def delete_tmp_dir():
         shutil.rmtree(tmp_dir)
     os.makedirs(TMP_DIR)
 
+
 def build_transform_dict(src_emb, trg_emb, trans_dict_path, target_words_dict):
-    src_vocab = set(src_emb.vocab.keys())
-    trg_vocab = set(trg_emb.vocab.keys())
+    src_vocab = set(src_emb.index_to_key)
+    trg_vocab = set(trg_emb.index_to_key)
 
     intersection = src_vocab.intersection(trg_vocab)
 

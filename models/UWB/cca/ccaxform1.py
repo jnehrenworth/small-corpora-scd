@@ -125,9 +125,9 @@ def transform_KV(src,trg,target_words_dict, max_links=100000,
     # decide on translation "pairs".
     # define generator for pairs
     def intersection():
-        for x in src.vocab.keys():
+        for x in src.index_to_key:
             if not x.strip(): continue # if all white-space
-            if x not in trg.vocab: continue
+            if x not in trg.index_to_key: continue
             if target_words_dict is not None and x in target_words_dict:
                 continue
 
@@ -171,7 +171,7 @@ def transform_KV(src,trg,target_words_dict, max_links=100000,
                 slots_left[c] += -1
         pairs_left[c] += -1
 
-    print('debugging:',tdsiz, pairs_left, max_links, len(tdict))
+    # print('debugging:',tdsiz, pairs_left, max_links, len(tdict))
 
     intersection = None # free space used by generator function
 
@@ -184,14 +184,14 @@ def transform_KV(src,trg,target_words_dict, max_links=100000,
 
 class junk:
     def __init__(self, mod):
-        self.vocab = mod.vocab
+        self.vocab = mod.key_to_index
 
-    def get_index(self,key):
+    def get_index(self, key):
         """
             This function desiged to be inserted into a pre-4.0.0 gensim
             KeyedVectors model.  (Data structure was changed...)
         """
-        return self.vocab[key].index
+        return self.vocab[key]
 
 
 def ensure_get_index(KVmodel):
@@ -200,10 +200,10 @@ def ensure_get_index(KVmodel):
         a pre-4.0.0 version of gensim model.
     """
 
-    if 'get_index' in KVmodel.__dict__ : return KVmodel
-    trf = junk(KVmodel)
-    KVmodel.__dict__['get_index'] = trf.get_index
-    return trf
+    # if 'get_index' in KVmodel.__dict__ : return KVmodel
+    # trf = junk(KVmodel)
+    # KVmodel.__dict__['get_index'] = trf.get_index
+    return KVmodel
 
 def build_dict(dictionary, mx, my):
     """

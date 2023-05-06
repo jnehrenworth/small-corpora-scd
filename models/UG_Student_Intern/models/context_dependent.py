@@ -1,10 +1,10 @@
 """ Model for unsupervised lexical semantic change ranking based on context-dependent word representations. """
 
-from models.utils.io_utils import make_masked_copy, load_dataset, load_pretrained_bert, load_local_bert, collect_sentences, load_rep_dict
-from models.utils.general_utils import find_first_seq_ics, apply2dicts, dict2array
+from models.UG_Student_Intern.models.utils.io_utils import make_masked_copy, load_dataset, load_pretrained_bert, load_local_bert, collect_sentences, load_rep_dict
+from models.UG_Student_Intern.models.utils.general_utils import find_first_seq_ics, apply2dicts, dict2array
 
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler
-from transformers import AdamW, WarmupLinearSchedule
+from transformers import AdamW, get_linear_schedule_with_warmup
 from scipy.spatial.distance import cdist
 from tqdm import tqdm
 
@@ -108,7 +108,7 @@ def train_bert(train_dataset, model, tokenizer, device, n_epochs=1, batch_size=1
     optimizer = AdamW(optimizer_params, lr=learning_rate, eps=1e-8)
 
     warmup_steps = int(warmup_ratio * t_total)
-    scheduler = WarmupLinearSchedule(optimizer, warmup_steps=warmup_steps, t_total=t_total)
+    scheduler = get_linear_schedule_with_warmup(optimizer, num_warmup_steps=warmup_steps, num_training_steps=t_total)
 
     model.zero_grad()
     model.train()

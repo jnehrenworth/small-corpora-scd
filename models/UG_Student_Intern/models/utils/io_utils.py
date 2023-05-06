@@ -1,7 +1,7 @@
 """ File operation utilities for LSCD models. """
 
-from models.utils.bert_utils import BinaryProcessor, convert_examples_to_features
-from models.utils.general_utils import mask_sent
+from models.UG_Student_Intern.models.utils.bert_utils import BinaryProcessor, convert_examples_to_features
+from models.UG_Student_Intern.models.utils.general_utils import mask_sent
 
 from transformers import BertConfig, BertForSequenceClassification, BertTokenizer
 from torch.utils.data import  TensorDataset

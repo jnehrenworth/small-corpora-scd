@@ -1,7 +1,7 @@
 """ Model for unsupervised lexical semantic change ranking based on context-free word representations. """
 
-from models.utils.general_utils import get_word_freqs
-from models.utils.io_utils import load_vector_dict
+from models.UG_Student_Intern.models.utils.general_utils import get_word_freqs
+from models.UG_Student_Intern.models.utils.io_utils import load_vector_dict
 
 import pandas as pd
 import numpy as np
@@ -101,7 +101,7 @@ def align_embeddings(experiment_dir):
         vec_dir + "c2_aligned.vec"
     ]
     
-    subprocess.call(["python3", "models/vecmap/map_embeddings.py"] + args + files)
+    subprocess.call(["python3", "models/UG_Student_Intern/models/vecmap/map_embeddings.py"] + args + files)
     
 
 def compare_context_free_representations(dataset_dir, experiment_dir):

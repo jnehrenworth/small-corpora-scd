@@ -8,7 +8,7 @@ logging.basicConfig(format='%(asctime)s : %(levelname)s : %(message)s', level=lo
 from gensim.models.callbacks import CallbackAny2Vec
 
 from gensim.models import Word2Vec
-from config import EMBEDDINGS_EXPORT_PATH, ENGLISH_TEST_CORPUS_1, ENGLISH_TEST_CORPUS_2, \
+from models.UWB.cca.config import EMBEDDINGS_EXPORT_PATH, ENGLISH_TEST_CORPUS_1, ENGLISH_TEST_CORPUS_2, \
     GERMAN_TEST_CORPUS_1, GERMAN_TEST_CORPUS_2, SWEDISH_TEST_CORPUS_1, SWEDISH_TEST_CORPUS_2, LATIN_TEST_CORPUS_1, \
     LATIN_TEST_CORPUS_2
 
@@ -18,16 +18,16 @@ from config import EMBEDDINGS_EXPORT_PATH, ENGLISH_TEST_CORPUS_1, ENGLISH_TEST_C
 # https://radimrehurek.com/gensim/models/fasttext.html
 
 
-DIM_SIZE = 300
+DIM_SIZE = 100
 WINDOW = 5
-ITER = 1
+ITER = 5
 NEGATIVE = 5
 
 WORKERS = 7
 MIN_COUNT = 5
 
-# METHOD = 'w2v'
-METHOD = 'fasttext'
+METHOD = 'w2v'
+# METHOD = 'fasttext'
 
 ALGORITHM = 'skipgram'
 # ALGORITHM = 'cbow'
@@ -93,11 +93,11 @@ def train_fasttext(sentences, dataset_name, path_to_data, dim_size, workers, win
     else:
         raise Exception("Unknown algorithm:" + str(algorithm))
     if use_file is True:
-        model = FastText(corpus_file=path_to_data, min_count=min_count, size=dim_size, workers=workers, window=window, sg=sg, iter=iter,
+        model = FastText(corpus_file=path_to_data, min_count=min_count, vector_size=dim_size, workers=workers, window=window, sg=sg, epochs=iter,
                          negative=negative, callbacks=[], max_vocab_size=None,)
     else:
-        model = FastText(sentences=sentences, min_count=min_count, size=dim_size, workers=workers, window=window, sg=sg,
-                         iter=iter, negative=negative, callbacks=[], max_vocab_size=None)
+        model = FastText(sentences=sentences, min_count=min_count, vector_size=dim_size, workers=workers, window=window, sg=sg,
+                         epochs=iter, negative=negative, callbacks=[], max_vocab_size=None)
 
     # model_ft = fasttext.train_unsupervised(path_to_data, minCount=min_count, dim=dim_size, thread=workers, ws=window,
     #                                     model=algorithm, epoch=iter, neg=negative)
@@ -150,7 +150,7 @@ def train_word2vec(sentences, dataset_name, dim_size, workers, window, iter,
     else:
         raise Exception("Unkown algorithm:" + str(algorithm))
 
-    model = Word2Vec(sentences, min_count=MIN_COUNT, size=dim_size, workers=workers, window=window, sg=sg, iter=iter, negative=negative)
+    model = Word2Vec(sentences, min_count=MIN_COUNT, vector_size=dim_size, workers=workers, window=window, sg=sg, epochs=iter, negative=negative)
     print("Model trained")
 
     # info
@@ -179,7 +179,7 @@ def generate_file_name(model_name, dataset_name, dim_size, window, iter, min_cou
     str_name = ''
     if note is not None:
         str_name = note + '_'
-    str_name += model_name + '.' + str(algorithm) + '.' + dataset_name + '.' + str(dim_size) + '_window-' + str(window) + '_iter-' + str(iter) + "_min-count-" + str(min_count)
+    str_name += model_name + '.' + dataset_name + '.' + str(dim_size) + '_window-' + str(window) + '_iter-' + str(iter) + "_min-count-" + str(min_count)
     return str_name
 
 

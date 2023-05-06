@@ -32,11 +32,11 @@ def compare_sense(sense_word, src_emb, trg_emb, transformation_matrix, topn=10):
     similarity = compute_cosine_sim(transformed_vec, trg_vec)
 
     # 10 most similar words to sense word in a target space
-    most_similar_to_original_word = trg_emb.wv.most_similar(positive=[sense_word], negative=[], topn=topn)
+    most_similar_to_original_word = trg_emb.most_similar(positive=[sense_word], negative=[], topn=topn)
     most_similar_to_original_word.append((sense_word, 1.0))
 
     # 10 most similar words to a transformed vector (from source space)
-    most_similar_to_transformed_vector = trg_emb.wv.similar_by_vector(transformed_vec, topn=topn+1)
+    most_similar_to_transformed_vector = trg_emb.similar_by_vector(transformed_vec, topn=topn+1)
 
     return similarity, most_similar_to_original_word, most_similar_to_transformed_vector
 
