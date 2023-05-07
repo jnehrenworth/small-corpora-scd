@@ -3,3 +3,7 @@ data/semeval/
 data/annotated_uses/
 
 __pycache__/
+
+# models
+models/UWB/
+models/UG_Student_Intern/
