@@ -1,4 +1,4 @@
-"""Main evaluation script, run python3 evaluate.py -h for usage information.
+"""Main evaluation script, run `python evaluate.py -h` for usage information.
 
 Broadly, this script works by first populating the dataset paths expected
 by each model with the `read_path` passed in (or "data/downsampled" by default), 
@@ -472,10 +472,10 @@ if __name__ == "__main__":
         After each model has been evaluated in each language, a table with
         summary results describing each model's performance in each language is
         printed.  To validate the results of my small-corpora testing, simply
-        run `python3 evaluate.py`.  If you wish to create your own downsampled
+        run `python evaluate.py`.  If you wish to create your own downsampled
         dataset, first use `download.sh` to download the SemEval 2020-Task 1 corpora
         and then use `downsample.py` to downsample the corpora to your hearts content.
-        After a downsampled corpora has been created, run `python3 evaluate.py` in 
+        After a downsampled corpora has been created, run `python evaluate.py` in 
         order to evaluate the performance of models on the downsampled corpora.  If
         you do not wish to overwrite the existing downsample that I have created, 
         provide a write directory to `downsample.py` and pass that same directory

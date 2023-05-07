@@ -54,15 +54,17 @@ The Python files in this directory have been tested using Python 3.10.8.  Use `p
 ### Downsample
 To create your own downsampled dataset, you will first have to download the [SemEval 2020-Task 1](https://www.ims.uni-stuttgart.de/en/research/resources/corpora/sem-eval-ulscd/) and [Annotated Word Uses](https://www.ims.uni-stuttgart.de/data/wugs) datasets.  If you are on a system that supports `curl`, run `chmod +x download_semeval.sh` and then `./download_semeval.sh`.  This will download the SemEval and Uses datasets into the relevant directories.  Note that these are quite large files, even when zipped, and may take some time to download.  
 
-Next, use the `downsample.py` script to create downsampled corpora of the desired token amount.  You can either overwrite the downsampled corpora I've provided, or give your own output directory.  In brief, you probably want to do something like `python3 downsample.py <language> -t <target_tokens> -w <path/to/out_dir>` for each `<language>` in "english", "german", and "swedish".  This will create a downsampled dataset in `<path/to/out_dir>` for the selected language where each corpus has about `<target>` number of words. See `python3 downsample.py -h` for more information about output directory structure and usage.
+Next, use the `downsample.py` script to create downsampled corpora of the desired token amount.  You can either overwrite the downsampled corpora I've provided, or give your own output directory.  In brief, you probably want to do something like `python downsample.py <language> -t <target_tokens> -w <path/to/out_dir>` for each `<language>` in "english", "german", and "swedish".  This will create a downsampled dataset in `<path/to/out_dir>` for the selected language where each corpus has about `<target>` number of words. See `python downsample.py -h` for more information about output directory structure and usage.
 
 ### Evaluate
-So, you've either created your own downsampled dataset or you want to validate my results.  You can use `evaluate.py` for this purpose.  The script by default reads from `data/downsampled`, but that can be overridden if you've placed your downsampled dataset in another directory.  You probably want to use it as `python3 evaluate.py <path/to/read_dir>`, where `<path/to/read_dir>` is either path you've input to the `downsample.py` program or can be left off to read from `data/downsampled`.  This script will train and evaluate each model's performance on Subtask 2 on the downsampled corpora.  See `python3 evaluate.py -h` for more information about this script.
+So, you've either created your own downsampled dataset or you want to validate my results.  You can use `evaluate.py` for this purpose.  The script by default reads from `data/downsampled`, but that can be overridden if you've placed your downsampled dataset in another directory.  You probably want to use it as `python evaluate.py <path/to/read_dir>`, where `<path/to/read_dir>` is either path you've input to the `downsample.py` program or can be left off to read from `data/downsampled`.  This script will train and evaluate each model's performance on Subtask 2 on the downsampled corpora.  See `python evaluate.py -h` for more information about this script.
 
 ### Example Usage
 
+If you want to, you can spin up a clean `conda` environment using something like `conda create -n small_corpora_ssd python=3.10.8` and then `conda activate small_corpora_ssd`.  The following code block assumes that you've already done that (or are using Python version 3.10) and then installed dependencies using `pip install -r requirements.txt`.  
+
 ```console
-user@small-corpora-ssd% chmod +x download.sh 
+user@small-corpora-ssd% chmod +x download.sh
 user@small-corpora-ssd% ./download.sh
 
 ========== Downloading english SemEval 2020-Task 1 Dataset ==========
@@ -98,7 +100,7 @@ Archive:  temp/english-semeval.zip
 ========== Downloading german SemEval 2020-Task 1 Dataset ==========
 (sniped)
 
-user@small-corpora-ssd% python3 downsample.py english -t 200000 -w data/downsample_example
+user@small-corpora-ssd% python downsample.py english -t 200000 -w data/downsample_example
 ========================= Getting Target Words =========================
 
 Gathering targets from data/semeval/english/targets.txt
@@ -158,11 +160,11 @@ Verifying annotated uses in data/downsample_example/english/ccoha2.txt...
 100 %|██████████████████████████████████████████| 9197/9197 [00:00<00:00, 140722.06it/s]
 
 Success: Downsample completed and verified in English, see tables for summary statistics.
-user@small-corpora-ssd% python3 downsample.py german -t 200000 -w data/downsample_example
+user@small-corpora-ssd% python downsample.py german -t 200000 -w data/downsample_example
 (snipped)
-user@small-corpora-ssd% python3 downsample.py swedish -t 200000 -w data/downsample_example
+user@small-corpora-ssd% python downsample.py swedish -t 200000 -w data/downsample_example
 (snipped)
-user@small-corpora-ssd% python3 evaluate.py data/downsample_example
+user@small-corpora-ssd% python evaluate.py data/downsample_example
 
 ========================= Populating Dataset Paths =========================
 

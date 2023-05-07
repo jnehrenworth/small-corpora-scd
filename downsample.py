@@ -596,15 +596,15 @@ if __name__ == "__main__":
 
     Example uses (output elided, for full output example see README.md):
 
-    >>> python3 downsample.py english
+    >>> python downsample.py english
     (details elided)
 
-    >>> python3 downsample.py german
+    >>> python downsample.py german
     (details elided, but this one will ask you to confirm that you want to continue
      the downsample despite the fact that the number of tokens requested is fewer
      than the number of annotated use tokens)
 
-    >>> python3 downsample.py english -t 165000 -s 41
+    >>> python downsample.py english -t 165000 -s 41
     (details elided, but essentially the same as the first example just using a 
      different seed and asking for more tokens to be sampled)
 
