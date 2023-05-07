@@ -377,8 +377,8 @@ def populate_all(read_path: str):
     and the `evaluate_all` function can be called.
     """
     model_to_rules = {
-        'UG_Student_Intern': path_rules_UGSI,
-        'UWB': path_rules_UWB
+        'UWB': path_rules_UWB,
+        'UG_Student_Intern': path_rules_UGSI
     }
 
     underscore_len = lambda model_name: len(f"Populating for {model_name}")
@@ -398,8 +398,8 @@ def evaluate_all():
     (perhaps by the `populate_all` function ;) )
     """
     model_to_eval_rules = {
-        'UG_Student_Intern': evaluation_rules_UGSI,
-        'UWB': evaluation_rules_UWB
+        'UWB': evaluation_rules_UWB,
+        'UG_Student_Intern': evaluation_rules_UGSI
     }
 
     evaluations = list()

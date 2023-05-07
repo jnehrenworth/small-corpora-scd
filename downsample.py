@@ -14,14 +14,14 @@ from tqdm import tqdm
 
 # not to be taken too seriously
 class codes:
-    SUCCESS = "\033[1m\033[36mSuccess:\033[0m"
+    SUCCESS = "\033[1m\033[32mSuccess:\033[0m"
     WARNING = "\033[1m\033[35mWarning:\033[0m"
     EXITING = "\033[1m\033[31mExiting:\033[0m"
     ERROR = "\033[1m\033[31mError:\033[0m"
 
     @staticmethod
     def color_name(name: str) -> str:
-        return f"\033[33m{name}\033[0m"
+        return f"\033[36m{name}\033[0m"
 
 
 #########################################
