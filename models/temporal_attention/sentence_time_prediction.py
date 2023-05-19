@@ -10,10 +10,10 @@ from sklearn.metrics import classification_report
 from tqdm import tqdm
 from tqdm.contrib.concurrent import process_map
 
-import data_utils
-import hf_utils
-import test_bert
-import utils
+import models.temporal_attention.data_utils as data_utils
+import models.temporal_attention.hf_utils as hf_utils
+import models.temporal_attention.test_bert as test_bert
+import models.temporal_attention.utils as utils
 
 
 def predict_time(time_to_label, fill_mask_pipeline, time_pattern, sentence):

@@ -9,8 +9,8 @@ from natsort import natsorted
 from textsearch import TextSearch
 
 import datasets
-import utils
-from temporal_text_dataset import TemporalText
+import models.temporal_attention.utils as utils
+from models.temporal_attention.temporal_text_dataset import TemporalText
 
 
 def iterdir_one_folder(path, suffix=None, suffixes=None, to_str=False):

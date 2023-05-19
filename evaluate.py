@@ -20,10 +20,15 @@ import argparse
 import contextlib
 import os
 import pathlib
+import scipy
 import shutil
+import sys
 import textwrap
+import time
 from argparse import RawTextHelpFormatter
+from loguru import logger
 from tabulate import tabulate
+from tqdm import tqdm
 from typing import Callable, Optional
 
 # UG_Student_Intern fns
@@ -33,6 +38,10 @@ from models.UG_Student_Intern.evaluate import evaluate_experiment
 # UWB fns
 import models.UWB.cca.embeddings.embeddings_generator as UWB_train
 import models.UWB.cca.compare as UWB_eval
+
+# temporal_attention fns
+import models.temporal_attention.train_tempobert as tempo_bert
+import models.temporal_attention.semantic_change_detection as scd
 
 # just for nice printing
 from downsample import codes
@@ -236,6 +245,227 @@ def evaluation_rules_UWB(language: str) -> float:
     return rho
 
 
+#########################################
+# temporal_attention Rules              #
+#########################################
+
+def path_rules_TA(language: str, entry: str) -> str:
+    """
+    """
+    base_path = "models/temporal_attention/data"
+    acronym = language[:3]
+
+    dir_path = f"{base_path}/semeval_{acronym}"
+
+    file_to_timeperiod = {
+        "ccoha1.txt": "ccoha_1860.txt",
+        "ccoha2.txt": "ccoha_2010.txt",
+        "dta.txt": "dta_1899.txt",
+        "bznd.txt": "bznd_1990.txt",
+        "kubhist2a.txt": "kubhist2a_1830.txt",
+        "kubhist2b.txt": "kubhist2b_1903.txt"
+    }
+
+    pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
+
+    if entry in file_to_timeperiod:
+        return f"{dir_path}/{file_to_timeperiod[entry]}"
+    
+    if entry == "targets.txt":
+        pathlib.Path(f"{dir_path}/targets").mkdir(exist_ok=True)
+        return f"{dir_path}/targets/targets.txt"
+    
+    # otherwise truth
+    return f"{dir_path}/{entry}"
+
+
+def preprocess_for_TA():
+    base_path = "models/temporal_attention/data"
+
+    corpora_names = ["semeval_eng", "semeval_ger", "semeval_swe"]
+    corpora_paths = [f"{base_path}/{corpus_name}" for corpus_name in corpora_names]
+    eng_path = corpora_paths[0]
+    for entry in os.listdir(eng_path):
+        if entry == "targets":
+            _strip_pos_tags(f"{eng_path}/{entry}/targets.txt")
+
+        if entry.endswith(".txt"):
+            _strip_pos_tags(f"{eng_path}/{entry}")
+
+    # also have to delete old .pkl files
+    for corpora_path in corpora_paths:
+        for entry in os.listdir(corpora_path):
+            if entry.endswith(".pkl"):
+                os.remove(f"{corpora_path}/{entry}")
+
+
+def evaluation_rules_TA(language: str) -> Optional[float]:
+    if language == "swedish":
+        return None
+
+    lang_to_params = {
+        'english': ("prajjwal1/bert-tiny", "semeval_eng", 1e-9, 2, 128, 2),
+        'german': ("bert-base-german-cased", "semeval_ger", 1e-6, 1, 768, 12)
+    }
+
+    base_train_path = "models/temporal_attention/data"
+
+    model_name, corpus_name, learning_rate, epochs, hidden_size, hidden_layers = lang_to_params[language]
+
+    evaluation_args = [
+        f"--model_name_or_path {model_name}", 
+        f"--train_path {base_train_path}/{corpus_name}",
+        f"--output_dir models/temporal_attention/results/{language}", 
+        f"--words_for_vocab_file {base_train_path}/{corpus_name}/targets/targets.txt",
+        f"--learning_rate {learning_rate}", 
+        f"--num_train_epochs {epochs}", 
+        f"--hidden_size {hidden_size}",
+        f"--num_hidden_layers {hidden_layers}",
+        f"--max_seq_length 128",
+        f"--overwrite_cache t",
+        f"--line_by_line t",
+        f"--do_train t",
+        f"--no_cuda t",
+    ]
+
+    # create .args file, expected to have the same name
+    # as calling file
+    script_name = sys.argv[0].partition(".")[0]
+    with open(f"{script_name}.args", "w") as args_file:
+        args_file.write(" ".join(evaluation_args))
+
+    start_train_time = _train_ta()
+    os.remove(f"{script_name}.args")
+
+    return _evaluate(start_train_time, language)
+
+
+#################################
+# temporal_attention helper fn  #
+#################################
+
+def _strip_pos_tags(file_path: str):
+    with open(file_path, "r") as f:
+        data = f.read().replace("_nn", "").replace("_vb", "")
+
+    with open(file_path, "w") as f:
+        f.write(data)
+
+# trains the tempobert model and returns a string
+# representing the time when the training started (for use)
+# 2023-5-14_12-44-56
+def _train_ta() -> str:
+    start_time = time.strftime(
+        "%Y-%m-%d_%H-%M-%S", time.localtime()
+    ).replace("-0", "-").replace("_0", "_")
+
+    tempo_bert.train_tempobert()
+
+    return start_time
+
+# essentially a re-implementation of semantic_change_detection_wrapper
+# in models/temporal_attention/semantic_change_detection.py
+def _evaluate(start_time: str, lang: str) -> float:
+    scd.hf_utils.prepare_tf_classes()
+    scd.utils.set_result_logger_level()
+    scd.utils.set_loguru_level("INFO")
+    lang_acronym = lang[:3]
+
+    corpus_path = f"models/temporal_attention/data/semeval_{lang_acronym}"
+    corpus_name = scd.Path(corpus_path).name
+
+    score_method = scd.SCORE_METHOD.COSINE_DIST
+    require_word_in_vocab = True
+    max_sentences = 500 # default
+    hidden_layers_number = None # use default num for method
+    batch_size = 64
+    device = -1 # no GPU avaliable
+
+    MODEL_PATH = f"models/temporal_attention/results/{lang}/{start_time}"
+    tester = scd.test_bert.Tester(MODEL_PATH, device=device)
+
+    logger.info(
+        f"Will evaluate on {corpus_name}, using {max_sentences=} and {hidden_layers_number=}"
+    )
+
+    test_corpus_path = pathlib.Path(corpus_path)
+    text_files = scd.data_utils.iterdir(test_corpus_path, suffix=".txt")
+    target_words = None
+    try:
+        model = next(tester.bert_models) # just the one...
+    except OSError:
+        start_time = start_time[:-2] + str((int(start_time[-2:]) + 1) % 60)
+        MODEL_PATH = f"models/temporal_attention/results/{lang}/{start_time}"
+        tester = scd.test_bert.Tester(MODEL_PATH, device=device)
+        model = next(tester.bert_models)
+
+
+    # main body taken from...
+    shifts_dict = scd.get_shifts(corpus_name, model.tokenizer)
+    target_words = list(shifts_dict.keys())
+    missing_words = scd.check_words_in_vocab(target_words, model.tokenizer, False)
+    if missing_words:
+        logger.warning(
+            f"{model} vocab doesn't contain {len(missing_words)} words: {missing_words}"
+        )
+    word_time_sentences = scd.data_utils.find_sentences_of_words(
+        text_files,
+        target_words,
+        max_sentences,
+        ignore_case=model.tokenizer.do_lower_case,
+        override=False,
+    )
+    if require_word_in_vocab:
+        target_words = [word for word in target_words if word not in missing_words]
+    detection_function = scd.get_detection_function(score_method, model.config)
+    word_to_score = {}
+    logger.info(f"Evaluating {model} using {score_method.name}...")
+    for word in tqdm(target_words, desc="Words"):
+        time_sentences = word_time_sentences[word]
+        time_to_sentence_count = {
+            time: len(d) for time, d in time_sentences.items()
+        }
+        if any(count < max_sentences for count in time_to_sentence_count.values()):
+            logger.debug(f"Num of sentences for '{word}': {time_to_sentence_count}")
+        for time, sentences in time_sentences.items():
+            if not sentences:
+                logger.debug(f"Found no sentences for '{word}' at time '{time}'")
+        if hasattr(model.config, 'times'):
+            missing_times = [
+                time for time in model.config.times if time not in time_sentences
+            ]
+            if missing_times:
+                logger.debug(f"Found no sentences for '{word}' at {missing_times}")
+        score = detection_function(
+            time_sentences,
+            model,
+            word,
+            score_method=score_method,
+            batch_size=batch_size,
+            hidden_layers_number=hidden_layers_number,
+        )
+        if score is None:
+            continue
+        word_to_score[word] = score
+    
+    words_str = (
+        f"out of {len(shifts_dict)} words" if len(word_to_score) < len(shifts_dict) else "words"
+    )
+
+    scores, ground_truth = zip(
+        *((score, shifts_dict[word]) for word, score in word_to_score.items())
+    )
+
+    logger.info(f"Calculating rho (based on {len(word_to_score)} {words_str})")
+    print(f"rho={scipy.stats.spearmanr(scores, ground_truth)[0]}", lang)
+
+    return scipy.stats.spearmanr(scores, ground_truth)[0]
+
+
+#########################################
+# Main driver fns                       #
+#########################################
+
 def populate(path_rules: Callable[[str, str], Optional[str]], read_path: str):
     """Populates the datapaths for a given model with the corpora and data from 
     `read_path` following the rules specified in `path_rules`.
@@ -252,26 +482,27 @@ def populate(path_rules: Callable[[str, str], Optional[str]], read_path: str):
     Parameters
     ----------
     `path_rules` : Callable[[str, str], Optional[str]]
-        The `path_rules` functions should take two inputs, language and a file name
-        in the form `path_rules(language, file)`.  The variable `language` will be in
-        {"english", "german", "swedish"} (in lowercase), and file will be in
+        The `path_rules` functions should take two inputs, language and a entry name
+        in the form `path_rules(language, entry)`.  The variable `language` will be in
+        {"english", "german", "swedish"} (in lowercase), and entry will be in
         {"truth", "targets.txt", "ccoha1.txt", "ccoha2.txt", "dta.txt", "bznd.txt", 
         "kubhist2a.txt", "kubhist2b.txt"}.  (If it is helpful, `path_rules` may assume
-        that the corpora names only appear as `file` when called with the relevant language,
+        that the corpora names only appear as `entry` when called with the relevant language,
         e.g., "ccoha1.txt" will only appear when `language` is "english").
         
         From these two intputs, `path_rules` should return either None to signal that
-        it is not necessary to copy the given file, or a path where the file should be
-        copied to.  The path should start from the current directory for this file or be 
+        it is not necessary to copy the given entry, or a path where the entry should be
+        copied to.  The path should start from the current directory for this entry or be 
         an absolute path.  For instance, the UG_Student_Intern model expects "ccoha1.txt" 
         to be placed in the path "models/UG_Student_Intern/datasets/en-semeval/c1.txt",
         so if the `path_rules` function was passed in to be `path_rules_UGSI`, then
         `path_rules("english", "ccoha1.txt")` => "models/UG_Student_Intern/datasets/
         en-semeval/c1.txt" (or the equivalent absolute version).
         
-        It is expected that after calling `path_rules`, if a file path is returned then
-        all parent directories exist on the way to that file.  See `path_rules_UWB` for
-        an example of why this may be necessary and how to do this.
+        It is expected that after calling `path_rules`, if a entry path is returned then
+        all parent directories exist on the way to that entry.  See `path_rules_UWB` for
+        an example of why this may be necessary and how to do this.  Both files and directories
+        are allowed to be returned as paths (e.g., the entire "truth" directory can be copied)
 
     `read_path` : str
         The `read_path` string should be a string with a path starting from this files
@@ -314,12 +545,17 @@ def populate(path_rules: Callable[[str, str], Optional[str]], read_path: str):
         if language.startswith("."):
             continue
             
-        for file in os.listdir(f"{read_path}/{language}"):
-            cpy_path = f"{read_path}/{language}/{file}"
-            populate_path = path_rules(language, file)
+        for entry in os.listdir(f"{read_path}/{language}"):
+            cpy_path = f"{read_path}/{language}/{entry}"
+            populate_path = path_rules(language, entry)
             if populate_path is not None:
                 print(f"Writing {cpy_path} to {populate_path}")
-                shutil.copyfile(cpy_path, populate_path)
+                if os.path.isfile(cpy_path):
+                    shutil.copyfile(cpy_path, populate_path)
+                else:
+                    if os.path.exists(populate_path):
+                        shutil.rmtree(populate_path)
+                    shutil.copytree(cpy_path, populate_path)
 
 
 def evaluate(evaluation_rules: Callable[[str], float]) -> dict[str, float]:
@@ -378,7 +614,8 @@ def populate_all(read_path: str):
     """
     model_to_rules = {
         'UWB': path_rules_UWB,
-        'UG_Student_Intern': path_rules_UGSI
+        'UG_Student_Intern': path_rules_UGSI,
+        'temporal_attention': path_rules_TA
     }
 
     underscore_len = lambda model_name: len(f"Populating for {model_name}")
@@ -387,6 +624,13 @@ def populate_all(read_path: str):
         print(f"Populating for {codes.color_name(model)}")
         print("-"*underscore_len(model) + "\n")
         populate(rule, read_path)
+         
+        # the temporal_attention model requires an additional preprocessing
+        # step be done to the corpora and targets, see preprocess_for_TA
+        # for more information
+        if model == "temporal_attention":
+            preprocess_for_TA()
+
         print(f"\n{codes.SUCCESS} {codes.color_name(model)} datasets populated\n")
 
 
@@ -399,7 +643,8 @@ def evaluate_all():
     """
     model_to_eval_rules = {
         'UWB': evaluation_rules_UWB,
-        'UG_Student_Intern': evaluation_rules_UGSI
+        'UG_Student_Intern': evaluation_rules_UGSI,
+        'temporal_attention': evaluation_rules_TA
     }
 
     evaluations = list()
@@ -496,4 +741,3 @@ if __name__ == "__main__":
 
     print("="*25 + " Evaluating Models " + "="*25 + "\n")
     evaluate_all()
-    

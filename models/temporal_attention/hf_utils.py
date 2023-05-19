@@ -10,8 +10,8 @@ from pathlib import Path
 import datasets
 from loguru import logger
 
-import utils
-from tokenization_utils_base import LARGE_INTEGER
+import models.temporal_attention.utils as utils
+from models.temporal_attention.tokenization_utils_base import LARGE_INTEGER
 from transformers import (
     MODEL_FOR_MASKED_LM_MAPPING,
     TOKENIZER_MAPPING,
@@ -105,6 +105,7 @@ def load_pretrained_model(
         current_log_level = hf_logging.get_verbosity()
         hf_logging.set_verbosity_warning()
     config = _load_auto_config(model_args, data_args, num_labels, **kwargs)
+
     model = model_cls.from_pretrained(
         model_args.model_name_or_path,
         config=config,
@@ -168,7 +169,7 @@ def lazyconfig_getitem(mapping, key):
     if module_name not in mapping._modules:
         if TempoModelName.has_key(key):
             mapping._modules[module_name] = importlib.import_module(
-                f".{module_name}", "models"
+                f".{module_name}", "models.temporal_attention.models"
             )
         else:
             mapping._modules[module_name] = importlib.import_module(
@@ -185,7 +186,7 @@ def _load_attr_from_module(mapping, model_type, attr):
     if module_name not in mapping._modules:
         if TempoModelName.has_key(model_type):
             mapping._modules[module_name] = importlib.import_module(
-                f".{module_name}", "models"
+                f".{module_name}", "models.temporal_attention.models"
             )
         else:
             mapping._modules[module_name] = importlib.import_module(
@@ -206,7 +207,7 @@ def tokenizer_class_from_name(class_name: str):
             module_name = model_type_to_module_name(module_name)
 
             if TempoModelName.has_key(module_name):
-                module = importlib.import_module(f".{module_name}", "models")
+                module = importlib.import_module(f".{module_name}", "models.temporal_attention.models")
             else:
                 module = importlib.import_module(
                     f".{module_name}", "transformers.models"

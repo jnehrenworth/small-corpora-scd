@@ -6,8 +6,8 @@ import math
 
 import torch
 import torch.utils.checkpoint
-import utils
-from models.tempobert.configuration_tempobert import TempoBertConfig
+import models.temporal_attention.utils as utils
+from models.temporal_attention.models.tempobert.configuration_tempobert import TempoBertConfig
 from packaging import version
 from torch import nn
 from torch.nn import CrossEntropyLoss

@@ -2,9 +2,9 @@ import numpy as np
 import torch
 from tqdm.std import trange
 
-import hf_utils
-import utils
-from train_tempobert import ModelArguments
+import models.temporal_attention.hf_utils as hf_utils
+import models.temporal_attention.utils as utils
+from models.temporal_attention.train_tempobert import ModelArguments
 from transformers import AutoModelForMaskedLM
 
 cache_dir = "data/cache"

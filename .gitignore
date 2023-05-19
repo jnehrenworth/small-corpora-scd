@@ -7,3 +7,5 @@ __pycache__/
 # models
 models/UWB/
 models/UG_Student_Intern/
+models/temporal_attention/results
+models/temporal_attention/data

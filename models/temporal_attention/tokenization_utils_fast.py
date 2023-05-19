@@ -31,8 +31,8 @@ from tokenizers.trainers import (
     WordPieceTrainer,
 )
 
-import utils
-from tokenization_utils_base import (
+import models.temporal_attention.utils as utils
+from models.temporal_attention.tokenization_utils_base import (
     BatchEncoding,
     PaddingStrategy,
     PreTokenizedInput,

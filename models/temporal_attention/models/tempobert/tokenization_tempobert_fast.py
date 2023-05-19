@@ -3,7 +3,7 @@
 import json
 from typing import List, Optional, Tuple
 
-from tokenization_utils_fast import TempoPreTrainedTokenizerFast
+from models.temporal_attention.tokenization_utils_fast import TempoPreTrainedTokenizerFast
 from tokenizers import normalizers
 from transformers.models.bert.tokenization_bert import BertTokenizer
 from transformers.models.bert.tokenization_bert_fast import (

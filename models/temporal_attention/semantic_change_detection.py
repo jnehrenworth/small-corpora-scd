@@ -10,10 +10,10 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-import data_utils
-import hf_utils
-import test_bert
-import utils
+import models.temporal_attention.data_utils as data_utils
+import models.temporal_attention.hf_utils as hf_utils
+import models.temporal_attention.test_bert as test_bert
+import models.temporal_attention.utils as utils
 
 
 class SCORE_METHOD(Flag):
@@ -318,7 +318,7 @@ def get_shifts(corpus_name, tokenizer=None):
         df_shifts = pd.read_csv(input_path, sep=",", encoding="utf8")
         shifts_dict = dict(zip(df_shifts.word, df_shifts.shift_index))
     elif corpus_name.startswith("semeval_"):
-        input_path = f"data/{corpus_name}/truth/graded.txt"
+        input_path = f"models/temporal_attention/data/{corpus_name}/truth/graded.txt"
         df_shifts = pd.read_csv(input_path, sep="\t", names=["word", "score"])
         if corpus_name.startswith("semeval_eng"):
             # The English-lemma target words have the POS tag as a suffix

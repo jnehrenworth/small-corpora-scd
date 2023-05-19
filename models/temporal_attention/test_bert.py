@@ -1,8 +1,8 @@
 from typing import Iterable
 
-import hf_utils
-from bert_model import BertModel
-from train_tempobert import ModelArguments
+import models.temporal_attention.hf_utils as hf_utils
+from models.temporal_attention.bert_model import BertModel
+from models.temporal_attention.train_tempobert import ModelArguments
 from transformers import AutoModelForMaskedLM, pipeline
 
 

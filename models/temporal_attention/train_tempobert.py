@@ -14,11 +14,11 @@ import datasets
 from dotenv import load_dotenv
 from loguru import logger
 
-import data_utils
-import hf_utils
-from models.tempobert.modeling_tempobert import TempoBertForMaskedLM
-from temporal_data_collator import DataCollatorForTimePrependedLanguageModeling
-from temporal_text_dataset import TemporalText
+import models.temporal_attention.data_utils as data_utils
+import models.temporal_attention.hf_utils as hf_utils
+from models.temporal_attention.models.tempobert.modeling_tempobert import TempoBertForMaskedLM
+from models.temporal_attention.temporal_data_collator import DataCollatorForTimePrependedLanguageModeling
+from models.temporal_attention.temporal_text_dataset import TemporalText
 from transformers import DataCollatorForLanguageModeling, Trainer, TrainingArguments
 from transformers.hf_argparser import HfArgumentParser
 from transformers.models.auto.configuration_auto import CONFIG_MAPPING
@@ -325,8 +325,18 @@ def load_data(
 ):
     dataset_files = data_utils.iterdir(corpus_path, suffix=".txt", to_str=True)
     logger.info("Loading dataset files...")
+
+    path_prfx_rem = "models/temporal_attention/"
+
+    # have to add in some hacks to mess around with the paths of the
+    # files as: on the one hand they need to be absolute paths from
+    # evaluate.py (models/temporal_attention/...), but on the other hand 
+    # for the purposes of datasets.load_dataset they will already have
+    # the path models/temporal_attention/ prepended
+    dataset_files = [f_name.partition(path_prfx_rem)[-1] for f_name in dataset_files]
+
     dataset = datasets.load_dataset(
-        data_args.dataset_name,
+        f"models/temporal_attention/{data_args.dataset_name}",
         data_files=dataset_files,
         split="train",  # Note the split is always labeled "train"
         cache_dir=model_args.cache_dir,
@@ -384,6 +394,7 @@ def train_tempobert():
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments)
     )
+
     model_args, data_args, training_args, last_checkpoint = hf_utils.init_run(parser)
 
     if (training_args.do_eval and not data_args.validation_path) or (
