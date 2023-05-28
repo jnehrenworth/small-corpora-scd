@@ -51,11 +51,11 @@ from downsample import codes
 # UG_Student_Intern Rules               #
 #########################################
 
-def path_rules_UGSI(language: str, file: str) -> Optional[str]:
+def path_rules_UGSI(language: str, entry: str) -> Optional[str]:
     """Returns either a string representing the path the UG_Student_Intern model
-    expects data for the given file in the given language to be, or None if
-    the model does not expect or care about the given file (e.g., their model
-    does not need to `target.txt` file to be copied over in any language).
+    expects data for the given entry in the given language to be, or None if
+    the model does not expect or care about the given entry (e.g., their model
+    does not need to `target.txt` entry to be copied over in any language).
 
     The UG_Student_Intern team has really good documentation, so the places they
     expect data to be written are fairly easy to find.  They provide a script,
@@ -94,9 +94,9 @@ def path_rules_UGSI(language: str, file: str) -> Optional[str]:
         "kubhist2b.txt": "c2.txt"
     }
 
-    if file in corpus_name_to_UG_name:
+    if entry in corpus_name_to_UG_name:
         acronym = acronyms_UG[language]
-        name = corpus_name_to_UG_name[file]
+        name = corpus_name_to_UG_name[entry]
 
         populate_path = f"{base_path}/{acronym}-semeval/{name}"
         return populate_path
@@ -140,14 +140,14 @@ def evaluation_rules_UGSI(language: str) -> float:
 # UWB Rules                             #
 #########################################   
 
-def path_rules_UWB(language: str, file: str) -> Optional[str]:
+def path_rules_UWB(language: str, entry: str) -> Optional[str]:
     """Returns either a string representing the path the UG_Student_Intern model
-    expects data for the given file in the given language to be, or None if
-    the model does not expect or care about the given file.
+    expects data for the given entry in the given language to be, or None if
+    the model does not expect or care about the given entry.
 
     The UWB team did not create directory stubs for each corpora, so this
     function will also create any non-existent directories so that the returned
-    path/to/file can be opened or copied to without having to do any directory
+    path/to/entry can be opened or copied to without having to do any directory
     creation.  To see whether the UWB model expects datasets to live, the best
     place to look is their config.py file in the UWB directory.  You have to
     do a little bit of detective-reverse engineering, so be prepared for that.
@@ -177,16 +177,16 @@ def path_rules_UWB(language: str, file: str) -> Optional[str]:
     # make directory if it doesn't previously exist
     pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
 
-    if file.endswith(".txt"):
-        if file != "targets.txt":
-            corpus_path = f"{dir_path}/{corpus_name_to_corpus[file]}/lemma"
+    if entry.endswith(".txt"):
+        if entry != "targets.txt":
+            corpus_path = f"{dir_path}/{corpus_name_to_corpus[entry]}/lemma"
 
             # again, creates dir if it hasn't already been created
             pathlib.Path(corpus_path).mkdir(parents=True, exist_ok=True)
 
-            populate_path = f"{corpus_path}/{file}"
+            populate_path = f"{corpus_path}/{entry}"
         else:
-            populate_path = f"{dir_path}/{file}"
+            populate_path = f"{dir_path}/{entry}"
 
         return populate_path
         
@@ -250,7 +250,30 @@ def evaluation_rules_UWB(language: str) -> float:
 #########################################
 
 def path_rules_TA(language: str, entry: str) -> str:
-    """
+    """Returns either a string representing the path to write entry.
+
+    The temporal_attention model expects a directory format that is essentially
+    equivalent to the downsampled directories format with essentially one exception:
+    if targets.txt is included as is it will be used as part of the semantic evaluation
+    process.  Instead, then, we place targets.txt into its own targets/targets.txt
+    directory.  In addition, the temporal_attention model requires time stamps to
+    be placed on each corpus, so that e.g., ccoha1.txt should become ccoha1_timestamp.txt.
+    In this function, we use the latest timestamp corresponding to each corpus in the
+    SemEval datasets.
+
+    *NOTE:* The tempora_attention model assumes that POS tags have been removed
+    from the english corpora, so it is very important that after this function
+    is used to fully populate the temporal_attention models datapaths the 
+    `preprocess_for_TA` function is called.
+
+    >>> path_rules_TA("english", "ccoha1.txt")
+    'models/temporal_attention/data/semeval_eng/ccoha1_1860.txt'
+    
+    >>> path_rules_TA("swedish", "kubhist2b.txt")
+    'models/temporal_attention/data/semeval_swe/kubhist2b_1903.txt'
+
+    >>> path_rules_TA("swedish", "targets.txt")
+    'models/temporal_attention/data/semeval_swe/targets/targets.txt'
     """
     base_path = "models/temporal_attention/data"
     acronym = language[:3]
@@ -258,8 +281,8 @@ def path_rules_TA(language: str, entry: str) -> str:
     dir_path = f"{base_path}/semeval_{acronym}"
 
     file_to_timeperiod = {
-        "ccoha1.txt": "ccoha_1860.txt",
-        "ccoha2.txt": "ccoha_2010.txt",
+        "ccoha1.txt": "ccoha1_1860.txt",
+        "ccoha2.txt": "ccoha2_2010.txt",
         "dta.txt": "dta_1899.txt",
         "bznd.txt": "bznd_1990.txt",
         "kubhist2a.txt": "kubhist2a_1830.txt",
@@ -272,6 +295,7 @@ def path_rules_TA(language: str, entry: str) -> str:
         return f"{dir_path}/{file_to_timeperiod[entry]}"
     
     if entry == "targets.txt":
+        # parent dir will already have created by line above
         pathlib.Path(f"{dir_path}/targets").mkdir(exist_ok=True)
         return f"{dir_path}/targets/targets.txt"
     
@@ -280,6 +304,18 @@ def path_rules_TA(language: str, entry: str) -> str:
 
 
 def preprocess_for_TA():
+    """Performs all necessary preprocessing steps for the temporal_attention model.
+
+    After populating the temporal_attention models datapaths and calling this function,
+    it should be safe to fully evaluate the temporal_attention model.  
+
+    The temporal_attention model expects that POS tags are stripped from the english corpora
+    and targets.  In addition, the sentences .pkl files must be removed prior to training
+    (the .pkl file contains word sentence embeddings), for they will not be overwritten during
+    a new training session (i.e., deleting them causes the temporal_attention model to actually
+    save the results of its embeddings).  This function *MUST* be called after populating
+    datasets and before evaluating the temporal_attention model. 
+    """
     base_path = "models/temporal_attention/data"
 
     corpora_names = ["semeval_eng", "semeval_ger", "semeval_swe"]
@@ -300,6 +336,14 @@ def preprocess_for_TA():
 
 
 def evaluation_rules_TA(language: str) -> Optional[float]:
+    """Trains the temporal_attention model on a given language and evaluates its performance, 
+    returning Spearman's rho measuring the strength of correlation between the 
+    models prediction of ranked sentiment and ground truth rankings.
+
+    This function expects that the temporal_attention model has already had its datasets 
+    populated, *and preprocessed*.  Remember that the datasets *must* be preprocessed using the 
+    `preprocess_for_TA` function.  
+    """
     if language == "swedish":
         return None
 
@@ -337,7 +381,7 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
     start_train_time = _train_ta()
     os.remove(f"{script_name}.args")
 
-    return _evaluate(start_train_time, language)
+    return _evaluate_ta(start_train_time, language)
 
 
 #################################
@@ -352,8 +396,9 @@ def _strip_pos_tags(file_path: str):
         f.write(data)
 
 # trains the tempobert model and returns a string
-# representing the time when the training started (for use)
-# 2023-5-14_12-44-56
+# representing the time when the training started 
+# we return this string (e.g., 2023-5-14_12-44-56)
+# because the temporal attention model expects 
 def _train_ta() -> str:
     start_time = time.strftime(
         "%Y-%m-%d_%H-%M-%S", time.localtime()
@@ -365,7 +410,11 @@ def _train_ta() -> str:
 
 # essentially a re-implementation of semantic_change_detection_wrapper
 # in models/temporal_attention/semantic_change_detection.py
-def _evaluate(start_time: str, lang: str) -> float:
+# don't expect much beauty through here — this function is basically just 
+# copying the semantic_change_detection_wrapper fn. except instead of pretty printing
+# the results as that function does here we just return the result
+# I've tried to leave some comments where appropriate to minimize wtfs/second
+def _evaluate_ta(start_time: str, lang: str) -> float:
     scd.hf_utils.prepare_tf_classes()
     scd.utils.set_result_logger_level()
     scd.utils.set_loguru_level("INFO")
@@ -391,9 +440,27 @@ def _evaluate(start_time: str, lang: str) -> float:
     test_corpus_path = pathlib.Path(corpus_path)
     text_files = scd.data_utils.iterdir(test_corpus_path, suffix=".txt")
     target_words = None
+
+    # basically, tester.bert_models returns a generator but in our case there's just
+    # the one model so we can immediately pop the first (and only) model out
+    # 
+    # each model after training is saved to 
+    #   models/temporal_attention/results/{lang}/{start_time}
+    # where start_time represents the time the model began training.
+    # for the life of me, I haven't found a way to change this naming, so this fn
+    # requires the time the model started training to be passed in via the `start_time`
+    # variable. of course, one problem is that there might be just a slight
+    # delay between when we tell the model to start and when the model *actually*
+    # starts training — this is stupid, I know — so for that reason if we get an error
+    # we try again just having added 1 to start_time
+    # 
+    # TODO: this (horrible) method does not round correctly across minutes, change it
     try:
         model = next(tester.bert_models) # just the one...
     except OSError:
+        # pretend we're rounding correctly
+        # in the future we should convert to a datetime object, add a second, then
+        # convert back...
         start_time = start_time[:-2] + str((int(start_time[-2:]) + 1) % 60)
         MODEL_PATH = f"models/temporal_attention/results/{lang}/{start_time}"
         tester = scd.test_bert.Tester(MODEL_PATH, device=device)

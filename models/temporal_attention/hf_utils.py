@@ -332,7 +332,7 @@ def init_run(
             )
 
     # Set seed before initializing model
-    set_seed(training_args.seed)
+    # set_seed(training_args.seed)
 
     register_temporal_classes()
 

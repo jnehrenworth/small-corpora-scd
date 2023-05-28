@@ -289,7 +289,7 @@ def get_downsample_from_corpus(
     cross_references: list[tuple[str, str]],
     corpus_path: str, 
     target: int
-) -> set[str]: 
+) -> set[str]:
     """Returns a set of downsampled lines from a corpus, where every cross referenced
     use in the corpus is included and a random sample of other lines are included
     until the `target` token count is reached.
@@ -313,7 +313,6 @@ def get_downsample_from_corpus(
         Token target.
     """
 
-    # returning a set has the added benefit of randomizing...
     corpus_lines = sum(1 for _ in open(corpus_path, "r"))
 
     # rough statistics to understand around how many lines to sample
@@ -416,7 +415,8 @@ def downsample(
     """
     for corpus_read_path, corpus_write_path in zip(read_corpora_paths, write_corpora_paths):
         print(f"\nDownsampling from {corpus_read_path} into {corpus_write_path}\n")
-        downsampled_corpus = get_downsample_from_corpus(cross_references, corpus_read_path, target)
+        downsampled_corpus = list(get_downsample_from_corpus(cross_references, corpus_read_path, target))
+        random.shuffle(downsampled_corpus)
         with open(corpus_write_path, "w") as downsample_file:
             for sample in downsampled_corpus:
                 downsample_file.write(f"{sample}\n")
