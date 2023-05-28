@@ -1,11 +1,17 @@
+# hidden and cache files
 .DS_Store
-data/semeval/
-data/annotated_uses/
-
 __pycache__/
 
-# models
-models/UWB/
-models/UG_Student_Intern/
+# data
+data/semeval
+data/annotated_uses
+
+# models are frozen and no longer need to be changed
+# models/UWB/
+# models/UG_Student_Intern/
 models/temporal_attention/results
 models/temporal_attention/data
+
+# code to creat visualizations in paper & results dir, not pushed to keep
+# this repository a little cleaner
+visualize.py
