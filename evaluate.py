@@ -25,6 +25,7 @@ import shutil
 import sys
 import textwrap
 import time
+import torch
 from argparse import RawTextHelpFormatter
 from loguru import logger
 from tabulate import tabulate
@@ -366,11 +367,12 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
         f"--hidden_size {hidden_size}",
         f"--num_hidden_layers {hidden_layers}",
         f"--max_seq_length 128",
-        f"--overwrite_cache t",
         f"--line_by_line t",
         f"--do_train t",
-        f"--no_cuda t",
     ]
+
+    cuda_str = f"--no_cuda {'f' if torch.cuda.is_available() else 't'}"
+    evaluation_args.append(cuda_str)
 
     # create .args file, expected to have the same name
     # as calling file
@@ -428,7 +430,7 @@ def _evaluate_ta(start_time: str, lang: str) -> float:
     max_sentences = 500 # default
     hidden_layers_number = None # use default num for method
     batch_size = 64
-    device = -1 # no GPU avaliable
+    device = 0 if torch.cuda.is_available() else -1
 
     MODEL_PATH = f"models/temporal_attention/results/{lang}/{start_time}"
     tester = scd.test_bert.Tester(MODEL_PATH, device=device)

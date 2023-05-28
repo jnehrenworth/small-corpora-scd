@@ -34,7 +34,7 @@ def yield_results(
     seed: int = None,
 ) -> Iterator[tuple[model_names, int]]:
 
-    for i in tqdm(range(iters)):
+    for i in range(iters):
         _reseed(seed)
 
         print("\n" + "="*25 + f" Evaluation # {i+1} " + "="*25 + "\n")
@@ -46,10 +46,9 @@ def yield_results(
             yield (model, eval_fn(language))
 
 
-# to .csv
 def run_stability_experiment(corpora_path: str, results_path: str):
     TARGET_TKNS = 150_000
-    EXPS = 400
+    EXPS = 260
 
     fns_pack = {
         'UWB': evaluation_rules_UWB,
@@ -72,6 +71,8 @@ def run_stability_experiment(corpora_path: str, results_path: str):
 
 
 def run_token_size_experiment(corpora_path: str, results_path: str):
+    EXPS_PER_TKN_TRGT = 10
+
     fns_pack = {
         'UWB': evaluation_rules_UWB,
         'UG_Student_Intern': evaluation_rules_UGSI,
@@ -79,11 +80,18 @@ def run_token_size_experiment(corpora_path: str, results_path: str):
     }
 
     token_test_targets = range(250_000, 6_250_000+1, 500_000)
-    with open(results_path) as results_file:
+    with open(results_path, "a+") as results_file:
         writer = csv.writer(results_file, delimiter=",")
-        writer.writerow(["Language", "Model", "Spearman's Rho", "Tokens"])
+
+        results_file.seek(0)
+        if results_file.readline().strip("\n") != "Language,Model,Spearman's Rho":
+            writer.writerow(["Language", "Model", "Spearman's Rho"])
+
         for token_target in token_test_targets:
-            pass
+            result_packs = yield_results(corpora_path, token_target, EXPS_PER_TKN_TRGT, "english", fns_pack)
+            for model_name, result in result_packs:
+                writer.writerow(["english", model_name, result])
+                results_file.flush()
 
 
 def run_experiments():
@@ -92,6 +100,7 @@ def run_experiments():
     pathlib.Path(results_dir).mkdir(exist_ok=True, parents=True)
 
     run_stability_experiment(corpora_path, f"{results_dir}/stability_experiment.csv")
+    run_token_size_experiment(corpora_path, f"{results_dir}/token_size_experiment.csv")
     # test_downsample()
 
     # no_reseed = get_results_dict(corpora_path, 150_000, num_experiments, ign_ta=True)
