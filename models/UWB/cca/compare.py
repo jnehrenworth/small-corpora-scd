@@ -432,7 +432,7 @@ def compare(src_emb_path, trg_emb_path, target_words_path, gold_file_task1, gold
         # print("task1 \t task2")
         # print(str(acc), str(rho))
 
-    return round(rho,3), round(acc,3), binary_threshold, min_neighbours_count
+    return rho, acc, binary_threshold, min_neighbours_count
 
 
 
