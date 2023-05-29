@@ -4,13 +4,12 @@
 #      6.5 million tokens from 250k tokens, with jumps of 250k
 
 import csv
-import io
 import numpy as np
 import os
 import random
 import torch
 from collections.abc import Iterator
-from downsample import handle_downsample, sample_random_lines
+from downsample import handle_downsample
 from evaluate import *
 from typing import Callable, Literal
 
@@ -38,7 +37,7 @@ def yield_results(
         _reseed(seed)
 
         print("\n" + "="*25 + f" Evaluation # {i+1} " + "="*25 + "\n")
-        handle_downsample(language, target, corpora_path)
+        handle_downsample(language, target, corpora_path, disable_warn=True)
         print()
         populate_all(corpora_path)
 
@@ -48,7 +47,7 @@ def yield_results(
 
 def run_stability_experiment(corpora_path: str, results_path: str):
     TARGET_TKNS = 150_000
-    EXPS = 260
+    EXPS = 500-6
 
     fns_pack = {
         'UWB': evaluation_rules_UWB,
@@ -63,7 +62,7 @@ def run_stability_experiment(corpora_path: str, results_path: str):
         if results_file.readline().strip("\n") != "Language,Model,Spearman's Rho":
             writer.writerow(["Language", "Model", "Spearman's Rho"])
 
-        for language in ["english"]:
+        for language in ["german"]:
             result_packs = yield_results(corpora_path, TARGET_TKNS, EXPS, language, fns_pack)
             for model_name, result in result_packs:
                 writer.writerow([language, model_name, result])
@@ -100,55 +99,7 @@ def run_experiments():
     pathlib.Path(results_dir).mkdir(exist_ok=True, parents=True)
 
     run_stability_experiment(corpora_path, f"{results_dir}/stability_experiment.csv")
-    run_token_size_experiment(corpora_path, f"{results_dir}/token_size_experiment.csv")
-    # test_downsample()
-
-    # no_reseed = get_results_dict(corpora_path, 150_000, num_experiments, ign_ta=True)
-
-    # Experiment 2.
-    # reseed = get_results_dict(corpora_path, 150_000, num_experiments, True)
-
-    # Experiment 3.
-    # token_test_targets = range(250_000, 6_250_000+1, 500_000)
-
-    # results = {
-    #     token_target : {
-    #         model_name : list of results at token_target
-    #     }
-    # }
-    # results_token_targs: dict[model_names, dict[int, float]] = dict()
-
-    # for token_target in token_test_targets:
-    #     results_token_targs[token_target] = get_results_dict(corpora_path, token_target, 10, True)
-
-    # Experiment 4.
-
-    # results = {
-    #     language : {
-    #         model_name : list of results for model in language
-    #     }
-    # }
-    # pprint(no_reseed)
-    # results: dict[str, dict[model_names, list[float]]] = dict()
-    # for lang in ["swedish", "german"]:
-    #     results[lang] = get_results_dict(corpora_path, 150_000, 10, ign_ta=True, lang=lang)
-
-    # # ENGLISH exps
-    # # diff sampled lines
-    # print("\n" + "No Reseed Results" + "\n" + "="*50)
-    # # pprint(no_reseed)
-
-    # # always same sampled lines, just diff order
-    # print("\n" + "Reseeding Results" + "\n" + "="*50)
-    # # pprint(reseed)
-
-    # # diff sampled lines, across diff # tokens
-    # print("\n" + "Token Target Results" + "\n" + "="*50)
-    # # pprint(results_token_targs)
-
-    # # ALL exps
-    # print("\n" + "Average Results" + "\n" + "="*50)
-    # pprint(results)
+    # run_token_size_experiment(corpora_path, f"{results_dir}/token_size_experiment.csv")
 
 if __name__ == "__main__":
     run_experiments()

@@ -288,7 +288,8 @@ def cross_verify(uses: list[str], corpus_paths: list[str], diagnostic_txt: str) 
 def get_downsample_from_corpus(
     cross_references: list[tuple[str, str]],
     corpus_path: str, 
-    target: int
+    target: int,
+    disable_warn: bool = False
 ) -> set[str]:
     """Returns a set of downsampled lines from a corpus, where every cross referenced
     use in the corpus is included and a random sample of other lines are included
@@ -329,7 +330,7 @@ def get_downsample_from_corpus(
     downsample = {match for match, corpus in cross_references if corpus == corpus_path}
     total_uses_tokens = sum(tokens_in_sentence(sample) for sample in downsample)
 
-    if total_uses_tokens >= target:
+    if total_uses_tokens >= target and not disable_warn:
         verification = input(
             f"\n{codes.WARNING} There were {total_uses_tokens:,} tokens in the annotated use"
             f" sentences.  This is more than the {target:,} requested tokens, but every annotated use"
@@ -372,7 +373,8 @@ def downsample(
     cross_references: list[tuple[str, str]],
     read_corpora_paths: list[str], 
     write_corpora_paths: list[str], 
-    target: int
+    target: int,
+    disable_warn: bool = False
 ):
     """Downsample corpora given in `read_corpora_paths` to .txt file paths
     given in `write_corpora paths` that have at least `target` total tokens and
@@ -415,14 +417,14 @@ def downsample(
     """
     for corpus_read_path, corpus_write_path in zip(read_corpora_paths, write_corpora_paths):
         print(f"\nDownsampling from {corpus_read_path} into {corpus_write_path}\n")
-        downsampled_corpus = list(get_downsample_from_corpus(cross_references, corpus_read_path, target))
+        downsampled_corpus = list(get_downsample_from_corpus(cross_references, corpus_read_path, target, disable_warn=disable_warn))
         random.shuffle(downsampled_corpus)
         with open(corpus_write_path, "w") as downsample_file:
             for sample in downsampled_corpus:
                 downsample_file.write(f"{sample}\n")
 
 
-def handle_downsample(language: str, target: int, write_path: str):
+def handle_downsample(language: str, target: int, write_path: str, disable_warn: bool = False):
     """Main driver that handles the downsample, printing
     relevant diagnostic text to console and querying user input
     when appropriate.  See help message for information on program flow.
@@ -471,7 +473,7 @@ def handle_downsample(language: str, target: int, write_path: str):
     cross_references = cross_verify(uses, read_paths, "Searching for annotated uses from")
 
     print("\n" + "="*25 + " Downsampling " + "="*25)
-    downsample(cross_references, read_paths, write_paths, target)
+    downsample(cross_references, read_paths, write_paths, target, disable_warn=disable_warn)
 
     print("\n" + "="*25 + " Verifying Target Uses in Downsampled " + "="*25)
     cross_verify(uses, write_paths, "Verifying annotated uses in")
