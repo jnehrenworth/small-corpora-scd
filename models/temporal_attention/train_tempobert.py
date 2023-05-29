@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional
 
 import datasets
+import torch
 from dotenv import load_dotenv
 from loguru import logger
 
@@ -449,7 +450,9 @@ def train_tempobert():
         time_embedding_type=model_args.time_embedding_type,
     )
     tokenizer = temporal_tokenizer_fast_class.from_non_temporal(tokenizer, config)
-    model = TempoBertForMaskedLM.from_non_temporal(model, config)
+
+    device = torch.device("cpu" if device < 0 else f"cuda:{device}")
+    model = TempoBertForMaskedLM.from_non_temporal(model, config).to(device)
 
     if data_args.words_for_vocab_file:
         tokens = Path(data_args.words_for_vocab_file).read_text().splitlines()

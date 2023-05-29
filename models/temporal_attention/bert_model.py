@@ -111,7 +111,7 @@ class BertModel:
             for batch, model_output in batch_and_outputs:
                 last_hidden_states = torch.sum(
                     torch.stack(model_output.hidden_states[-hidden_layers_number:]), 0
-                )
+                ).to(self.device)
                 # Extract the token embedding for the target word
                 # Find the index of the target word in each sentence
                 all_indices = (batch.data["input_ids"] == word_vocab_index).nonzero(
@@ -125,8 +125,8 @@ class BertModel:
                 # vecs' shape is: (number of appearances of the word,  emb_dim)
                 # assert vecs.shape == (batch_size, model.config.hidden_size)
                 if vecs.shape[0] == 1:  # in case `input` is a single sentence
-                    vecs = torch.squeeze(vecs)
-                result = torch.cat((result, vecs))
+                    vecs = torch.squeeze(vecs).to(self.device)
+                result = torch.cat((result, vecs)).to(self.device)
         else:
             subword_vocab_indices = self.tokenizer.encode(
                 word, add_special_tokens=False
@@ -134,7 +134,7 @@ class BertModel:
             for batch, model_output in batch_and_outputs:
                 last_hidden_states = torch.sum(
                     torch.stack(model_output.hidden_states[-hidden_layers_number:]), 0
-                )
+                ).to(self.device)
                 input_ids_all = batch.data["input_ids"].cpu().numpy()
                 sent_to_tokens = {
                     sent_i: utils.search_sequence_numpy(
@@ -161,10 +161,10 @@ class BertModel:
                 # ref: https://stackoverflow.com/questions/15956309/averaging-over-every-n-elements-of-a-numpy-array
                 vecs = torch.mean(
                     vecs.reshape(vecs.shape[0] // n, vecs.shape[1], n), axis=-1
-                )
+                ).to(self.device)
                 # vecs' shape is: (number of appearances of the word,  emb_dim)
                 # assert vecs.shape == (batch_size, model.config.hidden_size)
                 if vecs.shape[0] == 1:  # in case `input` is a single sentence
-                    vecs = torch.squeeze(vecs)
-                result = torch.cat((result, vecs))
+                    vecs = torch.squeeze(vecs).to(self.device)
+                result = torch.cat((result, vecs)).to(self.device)
         return result

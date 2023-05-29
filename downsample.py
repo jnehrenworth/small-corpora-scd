@@ -462,7 +462,7 @@ def handle_downsample(language: str, target: int, write_path: str, disable_warn:
     print("-"*20)
     print("  " + "\n  ".join(textwrap.wrap(", ".join(targets), width=85)))
 
-    target_use_paths = [f"data/annotated_uses/{language}/{target}.csv" for target in targets]
+    target_use_paths = [f"data/annotated_uses/{language}/{target.lower()}.csv" for target in targets]
     
     read_paths = [corpus1_path, corpus2_path]
     write_paths = [corpus1_write_path, corpus2_write_path]
