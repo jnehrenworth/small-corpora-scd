@@ -132,7 +132,7 @@ class TempoBertEmbeddings(nn.Module):
             time_ids = self.time_ids[:, :seq_length]
 
         if inputs_embeds is None:
-            inputs_embeds = self.word_embeddings(input_ids)
+            inputs_embeds = self.word_embeddings(input_ids).to(self.position_ids.device)
         token_type_embeddings = self.token_type_embeddings(token_type_ids)
 
         embeddings = inputs_embeds + token_type_embeddings
@@ -145,8 +145,10 @@ class TempoBertEmbeddings(nn.Module):
             # Get the time embedding per token
             time_embeddings = self.time_embeddings(time_ids)
 
-        embeddings = self.LayerNorm(embeddings)
-        embeddings = self.dropout(embeddings)
+        embeddings.to(self.position_ids.device)
+
+        embeddings = self.LayerNorm(embeddings).to(self.position_ids.device)
+        embeddings = self.dropout(embeddings).to(self.position_ids.device)
         return (
             (embeddings, time_embeddings)
             if "attention" in self.time_embedding_type

@@ -451,6 +451,7 @@ def train_tempobert():
     )
     tokenizer = temporal_tokenizer_fast_class.from_non_temporal(tokenizer, config)
 
+    device = 0 if torch.cuda.is_available() else -1
     device = torch.device("cpu" if device < 0 else f"cuda:{device}")
     model = TempoBertForMaskedLM.from_non_temporal(model, config).to(device)
 
