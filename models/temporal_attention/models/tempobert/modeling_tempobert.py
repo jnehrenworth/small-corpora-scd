@@ -132,18 +132,18 @@ class TempoBertEmbeddings(nn.Module):
             time_ids = self.time_ids[:, :seq_length]
 
         if inputs_embeds is None:
-            inputs_embeds = self.word_embeddings(input_ids).to(self.position_ids.device)
-        token_type_embeddings = self.token_type_embeddings(token_type_ids)
+            inputs_embeds = self.word_embeddings(input_ids.to(self.position_ids.device)).to(self.position_ids.device)
+        token_type_embeddings = self.token_type_embeddings(token_type_ids.to(self.position_ids.device))
 
         embeddings = inputs_embeds + token_type_embeddings
         if self.position_embedding_type == "absolute":
-            position_embeddings = self.position_embeddings(position_ids)
+            position_embeddings = self.position_embeddings(position_ids.to(self.position_ids.device))
             embeddings += position_embeddings
 
         time_embeddings = None
         if "attention" in self.time_embedding_type:
             # Get the time embedding per token
-            time_embeddings = self.time_embeddings(time_ids)
+            time_embeddings = self.time_embeddings(time_ids.to(self.position_ids.device))
 
         embeddings.to(self.position_ids.device)
 
@@ -323,6 +323,8 @@ class TemporalSelfAttention(BertSelfAttention):
         super().__init__(config)
         self.time = nn.Linear(config.hidden_size, self.all_head_size)
         self.time_embedding_type = config.time_embedding_type
+        device = 0 if torch.cuda.is_available() else -1
+        self.device = torch.device("cpu" if device < 0 else f"cuda:{device}")
 
     def forward(
         self,
@@ -391,7 +393,7 @@ class TemporalSelfAttention(BertSelfAttention):
         attention_scores = attention_scores / math.sqrt(self.attention_head_size)
         if attention_mask is not None:
             # Apply the attention mask is (precomputed for all layers in BertModel forward() function)
-            attention_scores = attention_scores + attention_mask
+            attention_scores = attention_scores.to(self.device) + attention_mask.to(self.device)
 
         # Normalize the attention scores to probabilities.
         attention_probs = nn.Softmax(dim=-1)(attention_scores)
@@ -402,7 +404,7 @@ class TemporalSelfAttention(BertSelfAttention):
 
         # Mask heads if we want to
         if head_mask is not None:
-            attention_probs = attention_probs * head_mask
+            attention_probs = attention_probs * head_mask.to(self.device)
 
         context_layer = torch.matmul(attention_probs, value_layer)
         context_layer = context_layer.permute(0, 2, 1, 3).contiguous()
@@ -1309,6 +1311,8 @@ class TempoBertForMaskedLM(TempoBertPreTrainedModel):
 
         self.cls = BertOnlyMLMHead(config)
         self.bert = TempoBertModel(config)
+        device = 0 if torch.cuda.is_available() else -1
+        self.device = torch.device("cpu" if device < 0 else f"cuda:{device}")
 
         self.init_weights()
 
@@ -1376,7 +1380,7 @@ class TempoBertForMaskedLM(TempoBertPreTrainedModel):
         if labels is not None:
             loss_fct = CrossEntropyLoss()  # -100 index = padding token
             masked_lm_loss = loss_fct(
-                prediction_scores.view(-1, self.config.vocab_size), labels.view(-1)
+                prediction_scores.view(-1, self.config.vocab_size).to(self.device), labels.view(-1).to(self.device)
             )
 
         if not return_dict:
