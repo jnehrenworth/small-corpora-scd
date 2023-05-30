@@ -96,7 +96,7 @@ def run_token_size_experiment(corpora_path: str, results_path: str):
 def run_experiments():
     corpora_path = "data/downsampled"
     results_dir = "results"
-    pathlib.Path(results_dir).mkdir(exist_ok=True, parents=True)
+    Path(results_dir).mkdir(exist_ok=True, parents=True)
 
     run_stability_experiment(corpora_path, f"{results_dir}/stability_experiment.csv")
     # run_token_size_experiment(corpora_path, f"{results_dir}/token_size_experiment.csv")

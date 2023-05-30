@@ -1,7 +1,9 @@
 import argparse
 import csv
 import linecache
+import os
 import pathlib
+import pickle
 import random
 import re
 import shutil
@@ -263,6 +265,17 @@ def cross_verify(uses: list[str], corpus_paths: list[str], diagnostic_txt: str) 
         use: ("", "") for use in uses 
     }
 
+    # "data/semeval/english/ccoha1.txt"
+    # TODO: Document this
+    langauge = next(lang for lang in ["english", "german", "swedish"] if lang in corpus_paths[0])
+    cache_dir = f"data/cached_annotated_uses"
+    cache_path = f"{cache_dir}/{langauge}.pkl"
+
+    if os.path.isfile(cache_path):
+        print(f"\nCached annotated uses found in {cache_path}")
+        with open(cache_path, "rb") as cached_uses:
+            return pickle.load(cached_uses)
+
     corpora_counts = [sum(1 for _ in open(corpus_path, "r")) for corpus_path in corpus_paths]
 
     for corpus_path, corpus_lines in zip(corpus_paths, corpora_counts):
@@ -272,11 +285,17 @@ def cross_verify(uses: list[str], corpus_paths: list[str], diagnostic_txt: str) 
     not_found = [use_sentence for use_sentence, (match, _) in reference_map.items() if not match]
 
     if not_found:
-        print(f"\n{codes.ERROR} {len(not_found):,} uses could not be found, here were the beginning of the first five:\n")
+        print(f"\n{codes.ERROR} {len(not_found):,} uses could not be found, here were the beginning of the first few:\n")
         for missing_use in not_found[:5]:
             print(missing_use[:250])
             print()
         sys.exit(1)
+
+    print(f"\nSaving cached uses to {cache_path}")
+
+    pathlib.Path(cache_dir).mkdir(exist_ok=True, parents=True)
+    with open(cache_path, "wb") as cache_file:
+        pickle.dump(list(reference_map.values()), cache_file, protocol=pickle.HIGHEST_PROTOCOL)
 
     return reference_map.values()
 
@@ -321,7 +340,7 @@ def get_downsample_from_corpus(
 
     # we should expect to have to sample around target / avg_tokens_per_line
     # number of lines to reach the desired token target... of course, we will have
-    # to throw out some of the lines if we select any verified ones, so we would prefer to 
+    # to throw out some of the lines if we select any cross referenced ones, so we would prefer to 
     # select too many than too few (hence multiplication by 2) — tqdm is used because
     # this ends up being the longest wait in the downsampling process
     avg_tokens_per_line = sum(tokens_in_sentence(line) for line in tqdm(open(corpus_path), total=corpus_lines)) / corpus_lines

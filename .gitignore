@@ -5,6 +5,7 @@ __pycache__/
 # data
 data/semeval
 data/annotated_uses
+data/cached_annotated_uses
 
 # models are frozen and no longer need to be changed
 # models/UWB/

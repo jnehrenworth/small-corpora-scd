@@ -19,15 +19,15 @@ pretty printing.
 import argparse
 import contextlib
 import os
-import pathlib
 import scipy
 import shutil
 import sys
 import textwrap
-import time
 import torch
 from argparse import RawTextHelpFormatter
+from datetime import datetime
 from loguru import logger
+from pathlib import Path
 from tabulate import tabulate
 from tqdm import tqdm
 from typing import Callable, Optional
@@ -176,14 +176,14 @@ def path_rules_UWB(language: str, entry: str) -> Optional[str]:
     dir_path = f"{base_path}/{language}/semeval2020_ulscd_{acronym}"
 
     # make directory if it doesn't previously exist
-    pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
+    Path(dir_path).mkdir(parents=True, exist_ok=True)
 
     if entry.endswith(".txt"):
         if entry != "targets.txt":
             corpus_path = f"{dir_path}/{corpus_name_to_corpus[entry]}/lemma"
 
             # again, creates dir if it hasn't already been created
-            pathlib.Path(corpus_path).mkdir(parents=True, exist_ok=True)
+            Path(corpus_path).mkdir(parents=True, exist_ok=True)
 
             populate_path = f"{corpus_path}/{entry}"
         else:
@@ -290,14 +290,14 @@ def path_rules_TA(language: str, entry: str) -> str:
         "kubhist2b.txt": "kubhist2b_1903.txt"
     }
 
-    pathlib.Path(dir_path).mkdir(parents=True, exist_ok=True)
+    Path(dir_path).mkdir(parents=True, exist_ok=True)
 
     if entry in file_to_timeperiod:
         return f"{dir_path}/{file_to_timeperiod[entry]}"
     
     if entry == "targets.txt":
         # parent dir will already have created by line above
-        pathlib.Path(f"{dir_path}/targets").mkdir(exist_ok=True)
+        Path(f"{dir_path}/targets").mkdir(exist_ok=True)
         return f"{dir_path}/targets/targets.txt"
     
     # otherwise truth
@@ -380,10 +380,10 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
     with open(f"{script_name}.args", "w") as args_file:
         args_file.write(" ".join(evaluation_args))
 
-    start_train_time = _train_ta()
+    tempo_bert.train_tempobert()
     os.remove(f"{script_name}.args")
 
-    return _evaluate_ta(start_train_time, language)
+    return _evaluate_ta(language)
 
 
 #################################
@@ -397,18 +397,15 @@ def _strip_pos_tags(file_path: str):
     with open(file_path, "w") as f:
         f.write(data)
 
-# trains the tempobert model and returns a string
-# representing the time when the training started 
-# we return this string (e.g., 2023-5-14_12-44-56)
-# because the temporal attention model expects 
-def _train_ta() -> str:
-    start_time = time.strftime(
-        "%Y-%m-%d_%H-%M-%S", time.localtime()
-    ).replace("-0", "-").replace("_0", "_")
+def _most_recent_model_path(language: str):
+    def get_datetime(entry: str):
+        try:
+            return datetime.strptime(entry.name, "%Y-%m-%d_%H-%M-%S")
+        except ValueError: # runs dir, return min for sorting purposes
+            return datetime.min
 
-    tempo_bert.train_tempobert()
-
-    return start_time
+    model_dir = f"models/temporal_attention/results/{language}"
+    return max(Path(model_dir).iterdir(), key=get_datetime)
 
 # essentially a re-implementation of semantic_change_detection_wrapper
 # in models/temporal_attention/semantic_change_detection.py
@@ -416,7 +413,7 @@ def _train_ta() -> str:
 # copying the semantic_change_detection_wrapper fn. except instead of pretty printing
 # the results as that function does here we just return the result
 # I've tried to leave some comments where appropriate to minimize wtfs/second
-def _evaluate_ta(start_time: str, lang: str) -> float:
+def _evaluate_ta(lang: str) -> float:
     scd.hf_utils.prepare_tf_classes()
     scd.utils.set_result_logger_level()
     scd.utils.set_loguru_level("INFO")
@@ -432,42 +429,17 @@ def _evaluate_ta(start_time: str, lang: str) -> float:
     batch_size = 64
     device = 0 if torch.cuda.is_available() else -1
 
-    MODEL_PATH = f"models/temporal_attention/results/{lang}/{start_time}"
+    MODEL_PATH = _most_recent_model_path(lang)
     tester = scd.test_bert.Tester(MODEL_PATH, device=device)
+    model = next(tester.bert_models) # just the one...
 
     logger.info(
         f"Will evaluate on {corpus_name}, using {max_sentences=} and {hidden_layers_number=}"
     )
 
-    test_corpus_path = pathlib.Path(corpus_path)
+    test_corpus_path = Path(corpus_path)
     text_files = scd.data_utils.iterdir(test_corpus_path, suffix=".txt")
     target_words = None
-
-    # basically, tester.bert_models returns a generator but in our case there's just
-    # the one model so we can immediately pop the first (and only) model out
-    # 
-    # each model after training is saved to 
-    #   models/temporal_attention/results/{lang}/{start_time}
-    # where start_time represents the time the model began training.
-    # for the life of me, I haven't found a way to change this naming, so this fn
-    # requires the time the model started training to be passed in via the `start_time`
-    # variable. of course, one problem is that there might be just a slight
-    # delay between when we tell the model to start and when the model *actually*
-    # starts training — this is stupid, I know — so for that reason if we get an error
-    # we try again just having added 1 to start_time
-    # 
-    # TODO: this (horrible) method does not round correctly across minutes, change it
-    try:
-        model = next(tester.bert_models) # just the one...
-    except OSError:
-        # pretend we're rounding correctly
-        # in the future we should convert to a datetime object, add a second, then
-        # convert back...
-        start_time = start_time[:-2] + str((int(start_time[-2:]) + 1) % 60)
-        MODEL_PATH = f"models/temporal_attention/results/{lang}/{start_time}"
-        tester = scd.test_bert.Tester(MODEL_PATH, device=device)
-        model = next(tester.bert_models)
-
 
     # main body taken from...
     shifts_dict = scd.get_shifts(corpus_name, model.tokenizer)

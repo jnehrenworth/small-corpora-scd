@@ -1311,8 +1311,6 @@ class TempoBertForMaskedLM(TempoBertPreTrainedModel):
 
         self.cls = BertOnlyMLMHead(config)
         self.bert = TempoBertModel(config)
-        device = 0 if torch.cuda.is_available() else -1
-        self.device = torch.device("cpu" if device < 0 else f"cuda:{device}")
 
         self.init_weights()
 
