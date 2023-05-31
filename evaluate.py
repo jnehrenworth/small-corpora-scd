@@ -397,15 +397,14 @@ def _strip_pos_tags(file_path: str):
     with open(file_path, "w") as f:
         f.write(data)
 
-def _most_recent_model_path(language: str):
+def _most_recent_path(dir: str):
     def get_datetime(entry: str):
         try:
             return datetime.strptime(entry.name, "%Y-%m-%d_%H-%M-%S")
         except ValueError: # runs dir, return min for sorting purposes
             return datetime.min
 
-    model_dir = f"models/temporal_attention/results/{language}"
-    return max(Path(model_dir).iterdir(), key=get_datetime)
+    return max(Path(dir).iterdir(), key=get_datetime)
 
 # essentially a re-implementation of semantic_change_detection_wrapper
 # in models/temporal_attention/semantic_change_detection.py
@@ -429,10 +428,14 @@ def _evaluate_ta(lang: str) -> float:
     batch_size = 64
     device = 0 if torch.cuda.is_available() else -1
 
-    MODEL_PATH = _most_recent_model_path(lang)
+    model_dir = f"models/temporal_attention/results/{lang}"
+    MODEL_PATH = _most_recent_path(model_dir)
     tester = scd.test_bert.Tester(MODEL_PATH, device=device)
     model = next(tester.bert_models) # just the one...
 
+    # cleanup to improve memory performance
+    shutil.rmtree("models/temporal_attention/results")
+ 
     logger.info(
         f"Will evaluate on {corpus_name}, using {max_sentences=} and {hidden_layers_number=}"
     )
