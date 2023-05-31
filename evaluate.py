@@ -349,7 +349,7 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
         return None
 
     lang_to_params = {
-        'english': ("prajjwal1/bert-tiny", "semeval_eng", 1e-9, 2, 128, 2),
+        'english': ("prajjwal1/bert-tiny", "semeval_eng", 1e-6, 3, 128, 2),
         'german': ("bert-base-german-cased", "semeval_ger", 1e-6, 1, 768, 12)
     }
 
@@ -423,9 +423,9 @@ def _evaluate_ta(lang: str) -> float:
 
     score_method = scd.SCORE_METHOD.COSINE_DIST
     require_word_in_vocab = True
-    max_sentences = 500 # default
+    max_sentences = 200
     hidden_layers_number = None # use default num for method
-    batch_size = 64
+    batch_size = 16 if lang == "english" else 64
     device = 0 if torch.cuda.is_available() else -1
 
     model_dir = f"models/temporal_attention/results/{lang}"
