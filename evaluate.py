@@ -425,7 +425,7 @@ def _evaluate_ta(lang: str) -> float:
     require_word_in_vocab = True
     max_sentences = 200
     hidden_layers_number = None # use default num for method
-    batch_size = 16 if lang == "english" else 64
+    batch_size = 64
     device = 0 if torch.cuda.is_available() else -1
 
     model_dir = f"models/temporal_attention/results/{lang}"
