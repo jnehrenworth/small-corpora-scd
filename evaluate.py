@@ -367,6 +367,7 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
         f"--hidden_size {hidden_size}",
         f"--num_hidden_layers {hidden_layers}",
         f"--per_device_train_batch_size 220",
+        f"--per_device_eval_batch_size 16",
         f"--max_seq_length 128",
         f"--line_by_line t",
         f"--do_train t",
@@ -425,7 +426,7 @@ def _evaluate_ta(lang: str) -> float:
     score_method = scd.SCORE_METHOD.COSINE_DIST
     require_word_in_vocab = True
     max_sentences = 200
-    hidden_layers_number = None # use default num for method
+    hidden_layers_number = 12 if lang == "english" else None
     batch_size = 64
     device = 0 if torch.cuda.is_available() else -1
 
