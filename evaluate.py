@@ -366,7 +366,7 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
         f"--num_train_epochs {epochs}", 
         f"--hidden_size {hidden_size}",
         f"--num_hidden_layers {hidden_layers}",
-        f"--batch_size 440",
+        f"--per_device_train_batch_size 220",
         f"--max_seq_length 128",
         f"--line_by_line t",
         f"--do_train t",
