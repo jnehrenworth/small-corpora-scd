@@ -47,7 +47,7 @@ def yield_results(
 
 def run_stability_experiment(corpora_path: str, results_path: str):
     TARGET_TKNS = 150_000
-    EXPS = 96
+    EXPS = 6
 
     fns_pack = {
         'UWB': evaluation_rules_UWB,
@@ -62,15 +62,11 @@ def run_stability_experiment(corpora_path: str, results_path: str):
         if results_file.readline().strip("\n") != "Language,Model,Spearman's Rho":
             writer.writerow(["Language", "Model", "Spearman's Rho"])
 
-        for language in ["german"]:
+        for language in ["swedish"]:
             result_packs = yield_results(corpora_path, TARGET_TKNS, EXPS, language, fns_pack)
             for model_name, result in result_packs:
                 writer.writerow([language, model_name, result])
                 results_file.flush()
-
-        for model_name, result in yield_results(corpora_path, TARGET_TKNS, 1, "german", {'temporal_attention': evaluation_rules_TA}):
-            writer.writerow([language, model_name, result])
-            results_file.flush()
 
 
 def run_token_size_experiment(corpora_path: str, results_path: str):
@@ -88,12 +84,12 @@ def run_token_size_experiment(corpora_path: str, results_path: str):
 
         results_file.seek(0)
         if results_file.readline().strip("\n") != "Language,Model,Spearman's Rho":
-            writer.writerow(["Language", "Model", "Spearman's Rho"])
+            writer.writerow(["Language", "Model", "Tokens", "Spearman's Rho"])
 
         for token_target in token_test_targets:
             result_packs = yield_results(corpora_path, token_target, EXPS_PER_TKN_TRGT, "english", fns_pack)
             for model_name, result in result_packs:
-                writer.writerow(["english", model_name, result])
+                writer.writerow(["english", model_name, token_target, result])
                 results_file.flush()
 
 
@@ -102,8 +98,8 @@ def run_experiments():
     results_dir = "results"
     Path(results_dir).mkdir(exist_ok=True, parents=True)
 
-    run_stability_experiment(corpora_path, f"{results_dir}/german_stability_experiment.csv")
-    run_token_size_experiment(corpora_path, f"{results_dir}/token_size_experiment.csv")
+    run_stability_experiment(corpora_path, f"{results_dir}/stability_experiment.csv")
+    # run_token_size_experiment(corpora_path, f"{results_dir}/token_size_experiment.csv")
 
 if __name__ == "__main__":
     run_experiments()
