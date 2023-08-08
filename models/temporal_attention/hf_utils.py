@@ -265,6 +265,7 @@ def init_run(
 ):
     """Load arguments, initialize logging and set seed."""
     (model_args, data_args, training_args,) = parser.parse_args_into_dataclasses(
+        args=[],
         look_for_args_file=True,
         args_filename=args_filename,
     )
@@ -332,7 +333,7 @@ def init_run(
             )
 
     # Set seed before initializing model
-    # set_seed(training_args.seed)
+    # set_seed(training_args.seed) 
 
     register_temporal_classes()
 
