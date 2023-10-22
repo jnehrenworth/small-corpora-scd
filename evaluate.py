@@ -10,7 +10,18 @@ function works similarly except it expects a function describing how to evaluate
 a certain model.  To add a new model, then, one just has to write functions 
 with rules for how to populate the model's datapaths and how to evaluate the
 model's performance.  See doc strings for `populate` and `evaluate` for 
-more info.
+more info, or look at experiments.py for examples of how to use the functions
+provided in this directory to replicate the experiments from our paper.
+
+The following steps can be taken to add a new model:
+
+1. Add the model to the models/ directory,
+2. Add path_rules for the model (see `populate`) that provide details
+   of how the model should be supplied with downsampled SemEval corpora,
+3. Add evaluation_rules for the model (see `evaluate`) that provide the ability
+   to evaluate the model once it has access to some corpora,
+4. (Optional) Add the model to experiments.py to quickly replicate the exact
+   experiments we performed in our paper on the new model you've added.
 
 The rest of this codebase is divided into sections with rules for each model
 and then at the end the `populate` and `evaluate` functions and some silly
@@ -348,6 +359,32 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
     if language == "swedish":
         return None
 
+    train_ta(language)
+    return _evaluate_ta(language)
+
+
+#################################
+# temporal_attention helper fns #
+#################################
+
+def _strip_pos_tags(file_path: str):
+    with open(file_path, "r") as f:
+        data = f.read().replace("_nn", "").replace("_vb", "")
+
+    with open(file_path, "w") as f:
+        f.write(data)
+
+def _most_recent_path(dir: str):
+    def get_datetime(entry: str):
+        try:
+            return datetime.strptime(entry.name, "%Y-%m-%d_%H-%M-%S")
+        except ValueError: # runs dir, return min for sorting purposes
+            return datetime.min
+
+    return max(Path(dir).iterdir(), key=get_datetime)
+
+
+def train_ta(language: str):
     lang_to_params = {
         'english': ("prajjwal1/bert-tiny", "semeval_eng", 1e-6, 3, 128, 2),
         'german': ("bert-base-german-cased", "semeval_ger", 1e-6, 1, 768, 12)
@@ -386,36 +423,40 @@ def evaluation_rules_TA(language: str) -> Optional[float]:
     tempo_bert.train_tempobert()
     os.remove(f"{script_name}.args")
 
-    return _evaluate_ta(language)
+
+def _evaluate_ta(lang: str) -> float:
+    shifts_dict = scd.get_shifts(f"semeval_{lang[3:]}")
+    semantic_changes = _get_semantic_changes(lang)
+
+    words_str = (
+        f"out of {len(shifts_dict)} words" if len(semantic_changes) < len(shifts_dict) else "words"
+    )
+
+    scores, ground_truth = zip(
+        *((score, shifts_dict[word]) for word, score in semantic_changes.items())
+    )
+
+    logger.info(f"Calculating rho (based on {len(semantic_changes)} {words_str})")
+    print(f"rho={scipy.stats.spearmanr(scores, ground_truth)[0]}", lang)
+
+    return scipy.stats.spearmanr(scores, ground_truth)[0]
 
 
-#################################
-# temporal_attention helper fn  #
-#################################
+def _get_targets(lang: str, corpus_path: str):
+    raw_targets = [l.strip() for l in open(f"{corpus_path}/targets/targets.txt").readlines()]
 
-def _strip_pos_tags(file_path: str):
-    with open(file_path, "r") as f:
-        data = f.read().replace("_nn", "").replace("_vb", "")
+    targets = [target.lower() for target in raw_targets]
+    
+    if lang == "english" and targets[0][-3] == "_":
+        # The English-lemma target words have the POS tag as a suffix
+        # if the _ is present.  This removes them
+        return [target.extract(r'(.+)_.+') for target in raw_targets]
+    return targets
 
-    with open(file_path, "w") as f:
-        f.write(data)
-
-def _most_recent_path(dir: str):
-    def get_datetime(entry: str):
-        try:
-            return datetime.strptime(entry.name, "%Y-%m-%d_%H-%M-%S")
-        except ValueError: # runs dir, return min for sorting purposes
-            return datetime.min
-
-    return max(Path(dir).iterdir(), key=get_datetime)
 
 # essentially a re-implementation of semantic_change_detection_wrapper
 # in models/temporal_attention/semantic_change_detection.py
-# don't expect much beauty through here — this function is basically just 
-# copying the semantic_change_detection_wrapper fn. except instead of pretty printing
-# the results as that function does here we just return the result
-# I've tried to leave some comments where appropriate to minimize wtfs/second
-def _evaluate_ta(lang: str) -> float:
+def _get_semantic_changes(lang: str) -> dict[str, float]:
     scd.hf_utils.prepare_tf_classes()
     scd.utils.set_result_logger_level()
     scd.utils.set_loguru_level("INFO")
@@ -445,11 +486,9 @@ def _evaluate_ta(lang: str) -> float:
 
     test_corpus_path = Path(corpus_path)
     text_files = scd.data_utils.iterdir(test_corpus_path, suffix=".txt")
-    target_words = None
 
-    # main body taken from...
-    shifts_dict = scd.get_shifts(corpus_name, model.tokenizer)
-    target_words = list(shifts_dict.keys())
+    target_words = _get_targets(lang, corpus_path)
+
     missing_words = scd.check_words_in_vocab(target_words, model.tokenizer, False)
     if missing_words:
         logger.warning(
@@ -495,19 +534,7 @@ def _evaluate_ta(lang: str) -> float:
             continue
         word_to_score[word] = score
     
-    words_str = (
-        f"out of {len(shifts_dict)} words" if len(word_to_score) < len(shifts_dict) else "words"
-    )
-
-    scores, ground_truth = zip(
-        *((score, shifts_dict[word]) for word, score in word_to_score.items())
-    )
-
-    logger.info(f"Calculating rho (based on {len(word_to_score)} {words_str})")
-    print(f"rho={scipy.stats.spearmanr(scores, ground_truth)[0]}", lang)
-
-    return scipy.stats.spearmanr(scores, ground_truth)[0]
-
+    return word_to_score
 
 #########################################
 # Main driver fns                       #
@@ -520,11 +547,11 @@ def populate(path_rules: Callable[[str, str], Optional[str]], read_path: str):
     The general idea is that each model evaluated can be trained by placing data in 
     some directory (following a certain directory structure) that a given model expects.
     If we understand the rules of how the directory structure was created we can recreate
-    it programmatically by copying data in each language director from `read_path` according
+    it programmatically by copying data in each language directory from `read_path` according
     to the rules given by `path_rules`.  See `read_path` parameter info for expected
     directory structure of `read_path` and `path_rules` parameter info for how to go about
     creating a new `path_rules` fn.  After calling this function, it should be safe to 
-    train the corresponding model to `path_rules`.
+    train the corresponding model.  
 
     Parameters
     ----------
@@ -654,10 +681,48 @@ def evaluate(evaluation_rules: Callable[[str], float]) -> dict[str, float]:
 
 
 def populate_all(read_path: str):
-    """Calls the `populate` function on each model currently under testing and
-    pretty prints some output to help the user understand what is going on.  After
-    this function has been called, all models will have had their datapaths filled
-    and the `evaluate_all` function can be called.
+    """Populates the datapaths for the UWB, UG_Student_Intern, and temporal_attention
+    models, pretty prints some output to help the user understand what is going on, and
+    provides any preprocessing necessary for any of the models; after this function has 
+    been called, all models will have had their datapaths filled and each model can 
+    directly be evaluated / trained.
+
+    Parameters
+    ----------
+    `read_path` : str
+        The `read_path` string should be a string with a path starting from the calling files
+        working directory pointing to a directory which should be used to populate model
+        datasets.  It is expected that the directory pointed to has the following structure:
+
+            read_path
+                ├── english
+                │    ├── truth
+                │    │    ├── binary.txt
+                │    │    └── graded.txt
+                │    ├── ccoha1.txt
+                │    ├── ccoha2.txt
+                │    └── targets.txt
+                ├── german
+                │    ├── truth
+                │    │    ├── binary.txt
+                │    │    └── graded.txt
+                │    ├── dta.txt
+                │    ├── bznd.txt
+                │    └── targets.txt
+                └── swedish
+                     ├── truth
+                     │    ├── binary.txt
+                     │    └── graded.txt
+                     ├── ccoha1.txt
+                     ├── ccoha2.txt
+                     └── targets.txt
+            
+            A common workflow might look like using `downsample.py` to downsample the 
+            english, german, and swedish corpora to some target size and then this
+            function can be used to populate model directories with the new downsized
+            copora.  The only other files that should be in the read_path directory
+            are those that are hidden (i.e., that start with a . — e.g., .DS_Store, .git).  If that becomes a hassle, it should be easy enough to change the `populate` function to
+            ignore other files as well.
     """
     model_to_rules = {
         'UWB': path_rules_UWB,
@@ -686,7 +751,7 @@ def evaluate_all():
     printing progress and a nice table of Spearman's rank correlation coefficients
     for each model in each language once the evaluation is completed.  Each model
     *must* have had their datapaths populated prior to this function being called
-    (perhaps by the `populate_all` function ;) )
+    (perhaps by the `populate_all` function)
     """
     model_to_eval_rules = {
         'UWB': evaluation_rules_UWB,
@@ -741,8 +806,8 @@ if __name__ == "__main__":
                  ├── truth
                  │    ├── binary.txt
                  │    └── graded.txt
-                 ├── ccoha1.txt
-                 ├── ccoha2.txt
+                 ├── kubhist2a.txt
+                 ├── kubhist2b.txt
                  └── targets.txt
                 
         The only other files that can be in the read_path directory or any subdirectories
@@ -763,13 +828,13 @@ if __name__ == "__main__":
 
         After each model has been evaluated in each language, a table with
         summary results describing each model's performance in each language is
-        printed.  To validate the results of my small-corpora testing, simply
-        run `python evaluate.py`.  If you wish to create your own downsampled
-        dataset, first use `download.sh` to download the SemEval 2020-Task 1 corpora
-        and then use `downsample.py` to downsample the corpora to your hearts content.
+        printed.  The functions in this directory can also be used to return
+        Spearman's rho instead of pretty printing it.  If you wish to create your own 
+        downsampled dataset, first use `download.sh` to download the SemEval 2020-Task 1 
+        corpora and then use `downsample.py` to downsample the SemEval corpora.
         After a downsampled corpora has been created, run `python evaluate.py` in 
         order to evaluate the performance of models on the downsampled corpora.  If
-        you do not wish to overwrite the existing downsample that I have created, 
+        you do not wish to overwrite the existing downsample that we have created, 
         provide a write directory to `downsample.py` and pass that same directory
         to this program.  See README.md for example use.
     """)

@@ -211,12 +211,16 @@ def cross_verify(uses: list[str], corpus_paths: list[str], diagnostic_txt: str) 
 
     This function searches through each corpus in `corpus_paths` and attempts to find a match
     for each use in `uses`.  A match is determined by using the `clean` function to first
-    remove extraneous punctuation, OCR errors, etc, and then searching for an exact match.
+    remove extraneous punctuation, OCR errors, etc., and then searching for an exact match.
     Diagnostic information is printed to the console based on the diagnostic_txt passed in,
     and if any `uses` were not found in the corpora then an error message is printed describing
-    a few of the `uses` that weren't found and the program is exit.  While I included a small
+    a few of the `uses` that weren't found and the program is exit.  While we included a small
     doctest demonstrating toy usage, to see how this function should be used in program flow it's 
     probably best to go to its call sites in `handle_downsample`.
+
+    Once the cross referencing process is complete, a cached version of the cross-reference is
+    saved to data/cached_annotated_uses/{language}.pkl.  If a previous cached version is found
+    it will be used.  This greatly improves performance when downsampling multiple times.
 
     Parameters
     ----------
@@ -265,11 +269,9 @@ def cross_verify(uses: list[str], corpus_paths: list[str], diagnostic_txt: str) 
         use: ("", "") for use in uses 
     }
 
-    # "data/semeval/english/ccoha1.txt"
-    # TODO: Document this
-    langauge = next(lang for lang in ["english", "german", "swedish"] if lang in corpus_paths[0])
+    language = next(lang for lang in ["english", "german", "swedish"] if lang in corpus_paths[0])
     cache_dir = f"data/cached_annotated_uses"
-    cache_path = f"{cache_dir}/{langauge}.pkl"
+    cache_path = f"{cache_dir}/{language}.pkl"
 
     if os.path.isfile(cache_path):
         print(f"\nCached annotated uses found in {cache_path}")
@@ -323,6 +325,10 @@ def get_downsample_from_corpus(
     If all goes well, a summary table will be printed with statistics highlighting
     the number of tokens sampled total, randomly, and from annotated uses.
 
+    The warning text can optionally be disabled by passing in disable_warn = True.  
+    Generally, this is most helpful when running experiments such as those presented
+    in our paper.
+
     Parameters
     ----------
     `cross_references` : list[tuple[str, str]]
@@ -331,6 +337,9 @@ def get_downsample_from_corpus(
         path/to/corpus.txt, e.g., "data/semeval/english/ccoha1.txt"
     `target` : int
         Token target.
+    `disable_warn` : bool
+        Whether to disable the warning presented to the user if there were more annotated
+        uses than the passed in `target`.
     """
 
     corpus_lines = sum(1 for _ in open(corpus_path, "r"))
@@ -411,6 +420,7 @@ def downsample(
     be prompted to confirm that they wish to continue with the downsample even though
     every annotated (i.e., cross referenced) use must be included to preserve ground
     truth data.  Similar error handling occurs if the user asks for too many tokens.
+    This behaviour can be disabled by passing disable_warn = True.
 
     Parameters
     ----------
@@ -433,6 +443,9 @@ def downsample(
         labelled ccoha1.txt in that directory.
     `target` : int
         Target number of tokens in the downsample.
+    `disable_warn` : bool
+        Whether to disable the warning presented to the user if there were more annotated
+        uses than the passed in `target`.
     """
     for corpus_read_path, corpus_write_path in zip(read_corpora_paths, write_corpora_paths):
         print(f"\nDownsampling from {corpus_read_path} into {corpus_write_path}\n")
@@ -444,20 +457,71 @@ def downsample(
 
 
 def handle_downsample(language: str, target: int, write_path: str, disable_warn: bool = False):
-    """Main driver that handles the downsample, printing
-    relevant diagnostic text to console and querying user input
-    when appropriate.  See help message for information on program flow.
+    """Handles the downsample for a given `language` in {"english", "german", "swedish"} to 
+    `target` tokens, printing any relevant diagnostic text to console, querying user input
+    when appropriate, and writing the downsampled corpora to `write_path`.
 
-    `language` must be in {"english", "german", "swedish"}.
+    This program expect a directory structure in the following form:
+
+        1. Annotated Uses: data/annotated_uses/{language}/{target_word}.csv
+        2. SemEval 2020-Task 1 Corpora: data/semeval/{language}/{corpus_name}.txt
+        3. SemEval 2020-Task 1 Targets: data/semeval/{language}/targets.txt
+
+    This directory structure can be automatically created using `download.sh` per the README.
+
+    The function will write to `write_path` the downsampled corpora for the requested language.
+    The truth/ and targets.txt files for the given language will also be copied over, so that after
+    running this file the directory format will be
+
+        `write_path`
+            ├── truth
+            │    ├── binary.txt
+            │    └── graded.txt
+            ├── CORPUS1.txt
+            ├── CORPUS2.txt
+            └── targets.txt
+
+    Where CORPUS1.txt and CORPUS2.txt are the names of the SemEval corpora for a given language:
+
+        {
+            "english": ("ccoha1.txt", "ccoha2.txt"), 
+            "german": ("dta.txt", "bznd.txt"), 
+            "swedish": ("kubhist2a.txt", "kubhist2b.txt")
+        }
+
+    It is not the case that exactly `target` total tokens will be sampled,
+    just based on the length of the last random sentence that was sampled before
+    the token limit was reached, but generally at worse it will be + 50 or so additional
+    tokens. If there were more tokens included as part of the manual annotation process
+    in a given language than requested `tokens`, the user will be prompted to confirm that 
+    they wish to continue with the downsample even though every annotated (i.e., cross referenced) 
+    use must be included to preserve ground truth data.  This behaviour can be disabled by passing 
+    disable_warn = True.
+
+    Run `python downsample.py -h` for more information.
+
+    Parameters
+    ----------
+    `language` : str
+        One of "english", "german", or "swedish".  Must be lower case. 
+    `target` : int
+        Target number of tokesn in the downsampled corpora.
+    `write_path` : srt
+        Paths to the corpora to write to.  It is not necessary for this
+        directory to previously exist.  It will be created if it does not, along
+        with any parent folders.
+    `disable_warn` : bool
+        Whether to disable the warning presented to the user if there were more annotated
+        uses than the passed in `target`.
     """
-    langauge_to_corpus_names = {
+    language_to_corpus_names = {
         "english": ("ccoha1", "ccoha2"), 
         "german": ("dta", "bznd"), 
         "latin": ("latinISE1", "latinISE2"), 
         "swedish": ("kubhist2a", "kubhist2b")
     }
 
-    names = langauge_to_corpus_names[language]
+    names = language_to_corpus_names[language]
     corpus1_path = f"data/semeval/{language}/{names[0]}.txt"
     corpus2_path = f"data/semeval/{language}/{names[1]}.txt"
     corpus1_write_path = f"{write_path}/{language}/{names[0]}.txt"
@@ -524,10 +588,10 @@ if __name__ == "__main__":
     million tokens in English as there weren't even 6.57 million tokens to begin with!).  
 
     The script will write to "data/downsampled/{language}/" the downsampled corpora for the
-    requested language by default, although that can be changed by passing in a different.  
+    requested language by default, although that can be changed by passing in a different write path.  
     The downsampled corpora will have a randomized line order but will have the same lines run to 
     run as long as random_seed is not changed.  The truth/ and targets.txt files for the given
-    language will also be copied over, so that after running this file the director format
+    language will also be copied over, so that after running this file the directory format
     will be
 
         data/downsampled/{language}
@@ -557,8 +621,8 @@ if __name__ == "__main__":
                                         after the game of romp with her father , and the 
                                         ride on the rocking-horse with her brother , who 
                                         , at last , from mere mischief , have tip her off 
-                                        , and send her cry to her mother , she begin to 
-                                        think about go there ."
+                                        , and send her cry to her mother , ---she begin 
+                                        to think about go there ."
             
             SemEval Counterpart: "so after the famous christmas-dinner with its nice 
                                   roast-meats and pudding and pie after the game of romp 
@@ -571,9 +635,9 @@ if __name__ == "__main__":
            annotated use is matched with its SemEval counterpart the SemEval version will be
            what is placed in the final downsampled corpus.
         3. Downsampling occurs, first including every annotated use and then randomly 
-           sampling sentences until the target token count is reached.  At this stage
-           summary statistics describing the downsample will be printed in the following
-           format:
+           sampling sentences that weren't part of the manual annotation process until 
+           the target token count is reached.  At this stage summary statistics describing
+           the downsample will be printed in the following format:
 
                    Downsample Summary
 
@@ -593,7 +657,7 @@ if __name__ == "__main__":
            there will be more tokens than requested (remember that every annotated use
            must be included in the downsampled corpora).
         4. Finally, a verification step ensures that every annotated use is actually 
-           present in the downsampled corpora.
+           present once in the downsampled corpora.
 
     This program expect a directory structure in the following form:
 
@@ -615,7 +679,7 @@ if __name__ == "__main__":
     This can be created by running `./download.sh` (you may need to give download.sh
     executable privileges first).
 
-    Example uses (output elided, for full output example see README.md):
+    Example uses (output elided):
 
     >>> python downsample.py english
     (details elided)

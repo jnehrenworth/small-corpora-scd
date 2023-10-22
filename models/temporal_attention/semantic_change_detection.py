@@ -312,7 +312,7 @@ def compute_metrics(
     return result_str
 
 
-def get_shifts(corpus_name, tokenizer=None):
+def get_shifts(corpus_name):
     if corpus_name.startswith("liverpool"):
         input_path = f"data/{corpus_name}/liverpool_shift.csv"
         df_shifts = pd.read_csv(input_path, sep=",", encoding="utf8")
@@ -326,8 +326,7 @@ def get_shifts(corpus_name, tokenizer=None):
                 df_shifts.word = df_shifts.word.str.extract(r'(.+)_.+')
         elif corpus_name.startswith("semeval_ger"):
             # The German target words are uppercased
-            if tokenizer.do_lower_case:
-                df_shifts.word = df_shifts.word.str.lower()
+            df_shifts.word = df_shifts.word.str.lower()
         elif corpus_name.startswith("semeval_lat"):
             pass
         else:

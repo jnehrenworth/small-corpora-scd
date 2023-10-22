@@ -2,17 +2,22 @@
 .DS_Store
 __pycache__/
 
-# data
+# large data not pushed for space reasons
 data/semeval
 data/annotated_uses
 data/cached_annotated_uses
 
+# literary analysis data, not pushed for copywrite reasons
+# please reach out if you would like to duplicate our results
+data/literary_analysis
+
 # models are frozen and no longer need to be changed
-# models/UWB/
-# models/UG_Student_Intern/
+models/UWB/
+models/UG_Student_Intern/
 models/temporal_attention/results
 models/temporal_attention/data
 
 # code to creat visualizations in paper & results dir, not pushed to keep
 # this repository a little cleaner
+# feel free to reach out if you want it
 visualize.py
