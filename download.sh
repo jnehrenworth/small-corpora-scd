@@ -67,15 +67,15 @@ mkdir data/semeval
 
 download_semeval https://www2.ims.uni-stuttgart.de/data/sem-eval-ulscd/semeval2020_ulscd_eng.zip eng english ccoha1 ccoha2
 download_semeval https://www2.ims.uni-stuttgart.de/data/sem-eval-ulscd/semeval2020_ulscd_ger.zip ger german dta bznd
-download_semeval https://zenodo.org/record/3730550/files/semeval2020_ulscd_swe.zip?download=1 swe swedish kubhist2a kubhist2b
+download_semeval https://zenodo.org/records/3730550/files/semeval2020_ulscd_swe.zip?download=1 swe swedish kubhist2a kubhist2b
 # download_semeval https://zenodo.org/record/3734089/files/semeval2020_ulscd_lat.zip?download=1 lat latin LatinISE1 LatinISE2
 
 # annotated uses download
 mkdir data/annotated_uses
 
-download_dwug https://zenodo.org/record/7387261/files/dwug_en.zip?download=1 en english
-download_dwug https://zenodo.org/record/7441645/files/dwug_de.zip?download=1 de german
-download_dwug https://zenodo.org/record/7389506/files/dwug_sv.zip?download=1 sv swedish
+download_dwug https://zenodo.org/records/7387261/files/dwug_en.zip?download=1 en english
+download_dwug https://zenodo.org/records/7441645/files/dwug_de.zip?download=1 de german
+download_dwug https://zenodo.org/records/7389506/files/dwug_sv.zip?download=1 sv swedish
 # download_dwug https://zenodo.org/record/5255228/files/dwug_la.zip?download=1 la latin
 
 # remove temp directory
