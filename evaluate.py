@@ -425,7 +425,7 @@ def train_ta(language: str):
 
 
 def _evaluate_ta(lang: str) -> float:
-    shifts_dict = scd.get_shifts(f"semeval_{lang[3:]}")
+    shifts_dict = scd.get_shifts(f"semeval_{lang[:3]}")
     semantic_changes = _get_semantic_changes(lang)
 
     words_str = (
