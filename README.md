@@ -82,26 +82,24 @@ temporal_attention  x.xxx     x.xxx
 ```
 
 ### Downsample
-Use the `downsample.py` script to create downsampled corpora of the desired token amount.  You can either overwrite the downsampled corpora we've provided, or give your own output directory.  Example usage:
+Use the `downsample.py` script to create downsampled corpora with a desired token amount.  You can either overwrite the downsampled corpora we've provided, or give your own output directory.  Example usage:
 
 ```console
 user@small-corpora-scd% python downsample.py <language> -t <target_tokens> -w <path/to/out_dir>
 ```
 
-In brief, you probably want to do run this command for each `<language>` in "english", "german", and "swedish".  This will create a downsampled dataset in `<path/to/out_dir>` for the selected language where each corpus has about `<target>` number of words. 
+You probably want to run this command for each `<language>` in "english", "german", and "swedish".  This will create a downsampled dataset in `<path/to/out_dir>` for the selected language where each corpus has about `<target>` number of words. 
 
 See `python downsample.py -h` for more information about output directory structure and usage.
 
 ### Evaluate
-Once you've created your own downsampled dataset, you can use `evaluate.py` to determine Spearman's $\rho$ for the models in `models/`.
-
-The script by default reads from `data/downsampled`, but that can be overridden if you've placed your dataset in another directory.  Example usage:
+Once you've created your own downsampled dataset, you can use `evaluate.py` to determine Spearman's $\rho$ for each model in `models/`.  The script by default reads from `data/downsampled`, but that can be overridden if you've placed your dataset in another directory.  Example usage:
 
 ```console
 user@small-corpora-scd% python evaluate.py <path/to/read_dir>
 ```
 
-Where `<path/to/read_dir>` is the path you've input to the `downsample.py` program.  This script will train and evaluate each model's performance in `models/` on the corpora in `<path/to/read_dir>`.  See `python evaluate.py -h` for more information about this script.  **Note, due to the stochastic nature of  in the models, performance will vary run to run.**  You will not get the exact same metrics we report in our paper with a single run of `evaluate.py`.
+Where `<path/to/read_dir>` is the path you've input to the `downsample.py` program.  This script will train and evaluate each model's performance in `models/` on the corpora in `<path/to/read_dir>`.  See `python evaluate.py -h` for more information about this script.  **Note: due to the stochastic nature of the models performance will vary run to run.**  You will not get the exact same metrics we report in our paper with a single run of `evaluate.py`.
 
 ### Experiments
 The file `experiments.py` was what we used to determine the results of sections 5.1, 5.2, and 5.3 in our paper.  As with every other file in this directory, before `experiments.py` is used the [SemEval 2020-Task 1](https://www.ims.uni-stuttgart.de/en/research/resources/corpora/sem-eval-ulscd/) and [Annotated Word Uses](https://www.ims.uni-stuttgart.de/data/wugs) corpora must be downloaded and all relevant requirements must be installed (see [Install](#install) for more information).  Run our experiments using `python experiments.py`.
@@ -151,5 +149,7 @@ We pulled the latest version of each model's GitHub on May 2nd, 2023.
 ## Important Caveats
 
 - The `temporal_attention` model in `models/` will only run on a single GPU.  It is probably the case that enough debugging would enable it to run on multiple GPU instances, but if you are testing a new model and wish to run it across multiple GPUs it may be easiest to delete all evaluation of the `temporal_attention` model from `experiments.py`.
+
+-  The `temporal_attention` model requires around 20GB of GPU RAM if running on a GPU.  These memory constraints can be ameliorated at the cost of additional runtime by changing the `per_device_train_batch_size` evaluation argument in the `train_ta` function in `evaluate.py`. 
 
 - As noted in [Literary Analysis](#literary-analysis), it will not be possible to run `literary_analysis.py` without access to digitized copies of Fanon's *The Wretched of the Earth* and Hartman's *Scenes of Subjection*.  Unfortunately, we cannot make these publicly available due to copyright.  Please reach out to obtain copies.
